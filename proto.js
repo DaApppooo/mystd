@@ -1,7 +1,96 @@
 var Arr = Array;
 var nil = null;
+class Sel
+{
+  constructor(f)
+  {
+    if (Object.prototype.toString.call(f) === '[object Array]')
+      this._f = function() { return f; }
+    else
+      this._f = f;
+  }
+  sort(F)
+  {
+  }
+}
 function arr() { return new Arr(); };
+function range(start,end,step=1) {
+  if (end === undefined)
+    return (new Arr()).slen(start).map((_,i) => i*step);
+  else
+    return (new Arr()).slen(Math.floor((end - start)/step)).map((_,i) => start + i*step);
+};
 Arr.prototype.slen = function(c) { this.length = c; return this; };
+Arr.prototype.add = function(c) { return this.map(v => v + c); };
+Arr.prototype.mul = function(c) { return this.map(v => v * c); };
+Arr.prototype.sum = function(start,end,step=1) {
+  let r = 0;
+  if (end === undefined)
+  {
+    if (start === undefined)
+      start = this.length;
+    for (let i = 0; i < start; i+=step)
+    {
+      r += this[Math.floor(i)];
+    }
+  }
+  else
+  {
+    for (let i = start; i < end; i+=step)
+    {
+      r += this[Math.floor(i)];
+    }
+  }
+  return r;
+};
+Arr.prototype.prod = function(start,end,step=1) {
+  let r = 1;
+  if (end === undefined)
+  {
+    if (start === undefined)
+      start = this.length;
+    for (let i = 0; i < start; i+=step)
+    {
+      r *= this[Math.floor(i)];
+    }
+  }
+  else
+  {
+    for (let i = start; i < end; i+=step)
+    {
+      r *= this[Math.floor(i)];
+    }
+  }
+  return r;
+};
+Arr.prototype.where = function(F, start,end,step=1)
+{
+  let r = 1;
+  let f;
+  if (typeof F !== 'function')
+    f = (v) => { return v == F; }
+  else
+    f = F;
+  if (end === undefined)
+  {
+    if (start === undefined)
+      start = this.length;
+    for (let i = 0; i < start; i+=step)
+    {
+      if (f(this[i], i, this))
+        return i;
+    }
+  }
+  else
+  {
+    for (let i = start; i < end; i+=step)
+    {
+      if (f(this[i], i, this))
+        return i;
+    }
+  }
+  return r;
+};
 Arr.prototype.echo = function(a,b) {
   if (a !== null && b !== null)
   {
@@ -24,6 +113,46 @@ Arr.prototype.map = function(F) {
   }
   return a;
 };
+Arr.prototype.swap = function(a, b)
+{
+  if (typeof a === 'function')
+  {
+    for (let i = 0; i < this.length; i++)
+    {
+      for (let j = i+1; j < this.length; j++)
+      {
+        if (b === undefined)
+        {
+          if (a(this[i], this[j], i, j, this))
+          {
+            let temp = this[i];
+            this[i] = this[j];
+            this[j] = temp;
+          }
+        }
+        else if (a(this[i],i,this) && b(this[j],j,this))
+        {
+          let temp = this[i];
+          this[i] = this[j];
+          this[j] = temp;
+        }
+      }
+    }
+  }
+  else
+  {
+    let temp = this[a];
+    this[a] = this[b];
+    this[b] = temp;
+  }
+  return this;
+}
+Arr.prototype.slico = function(o_before, o_after, start, end)
+{
+  window[o_before] = this.slice(0, start);
+  window[o_after] = this.slice(end);
+  return this.slice(start, end);
+}
 Arr.prototype.ifall = function(F, THEN, ELSE)
 {
   for (let i = 0; i < this.length; i++) {
@@ -131,8 +260,8 @@ Arr.prototype.mapr = function(F)
   let r = arr();
   for (let i = 0; i < this.length; i++)
   {
-    if (typeof this[i] === 'Arr')
-    { // todo
+    if (Object.prototype.toString.call(this[i]) === '[object Array]')
+    {
       r.push(this[i].mapr(F));
     }
     else
@@ -142,9 +271,26 @@ Arr.prototype.mapr = function(F)
   }
   return r;
 }
+Arr.prototype.sel = function()
+{
+  return new Sel(this);
+}
 Number.prototype.echo = function() { console.log(this.toString()); return this; }
 
-arr().slen(64).map((_, i) => i).echo()
-  .win((_, i) => i+1).echo()
-  .mapr(v => v > 3 ? v - 3 : 0).echo()
+for (let i of Object.getOwnPropertyNames(Arr.prototype))
+{
+  Sel.prototype[i] = function(...param)
+  {
+    let s = this;
+    function _selwrap()
+    {
+      const r = s._f();
+      return Arr.prototype[i].call(r, ...param);
+    }
+    return new Sel(_selwrap);
+  }
+}
+
+range(20).swap((a,b) => a > b).echo()
+
 
