@@ -48,3 +48,5 @@ list<char>& list<char>::rmv_range([[maybe_unused]] std::initializer_list<index_t
 }
 
 
+// AAAAAA
+// AAAAA
