@@ -6,18 +6,28 @@
 #include <cstddef>
 #include <cstring>
 
+#include <cstdio>
 #include <experimental/type_traits>
 #include <initializer_list>
 #include <utility>
-#include <raylib.h>
 #include <cstdint>
-#include "utils.hpp"
 
+#ifdef H_RAYLIB
 #define dblog(WARN, ...) TraceLog(WARN, __VA_ARGS__)
+#else
+#define dblog(WARN, ...) fprintf(stderr, __VA_ARGS__)
+#endif
 #define assertm(cond, ...) if (!(cond)) { dblog(LOG_FATAL, __VA_ARGS__); assert((cond));}
 #define poff(ptr, byte_offset) ((decltype(ptr))(((uint8_t*)(ptr)) + (byte_offset)))
 using isize = int64_t;
 using index_t = int32_t;
+
+inline isize _list_str_len(const char* s)
+{
+  if (s == nullptr) return 0;
+  if (*s == 0) return 0;
+  return strlen(s);
+}
 
 template <class T> struct View
 {
@@ -56,7 +66,10 @@ public:
   list(const T*);
   list(const list<T>& other) { memcpy(this, &other, sizeof(list<T>)); }
   list(const list<T>&& other) { memcpy(this, &other, sizeof(list<T>)); }
-  inline Self& init();
+  static inline Self init()
+  {
+    return {nullptr, 0};
+  }
   inline Self& push(T element);
   Self& prextend(View<T> ref_pre);
   Self& extend(View<T> ref_ext);
@@ -178,13 +191,6 @@ GEN inline bool list<T>::is_owned() const
   if (_data == nullptr)
     assert(_cap == 0);
   return _data != nullptr || _cap != 0;
-}
-
-GEN inline Self& list<T>::init()
-{
-  _data = nullptr;
-  _cap = 0;
-  return *this;
 }
 
 GEN inline Self& list<T>::prealloc(isize size)
