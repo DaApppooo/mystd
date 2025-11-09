@@ -9,7 +9,6 @@ mod serde
 
   using SerCallback =
     Result(*)(const void* src, size_t size, void* data);
-  template <class T>
   using DeserCallback =
     Result(*)(void* src, size_t size, void* data);
 
@@ -23,7 +22,7 @@ mod serde
   { { o.serialize(s, data) } -> std::same_as<Result>; };
 
   template <class T>
-  concept Deserializable = requires(DeserCallback<T> d, void* data)
+  concept Deserializable = requires(DeserCallback d, void* data)
   { { T::deserialize(d, data) } -> std::same_as<Opt<T>>; };
 }
 

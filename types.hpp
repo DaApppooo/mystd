@@ -1,4 +1,5 @@
-
+#ifndef H_TYPES
+#define H_TYPES
 #include <cstdint>
 using u8 = uint8_t;
 using u16 = uint16_t;
@@ -13,3 +14,4 @@ using Own = T;
 template <class T>
 using Ref = T;
 
+#endif

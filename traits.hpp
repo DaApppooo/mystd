@@ -1,4 +1,6 @@
-
+#ifndef H_TRAITS
+#define H_TRAITS
+#include "types.hpp"
 #include <concepts>
 #include <type_traits>
 template <class T>
@@ -28,5 +30,6 @@ concept Indexable =
 // (grossly equivalent to a rust move)
 template <class T>
 concept Giveable = requires (T g)
-{ { g.give() } -> std::same_as<T>; };
+{ { g.give() } -> std::same_as<Own<T>>; };
 
+#endif

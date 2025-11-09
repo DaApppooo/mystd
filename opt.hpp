@@ -4,7 +4,7 @@
 template <class T>
 concept Optionable = requires(T const& t)
 {
-  std::is_pointer_v<T> || (t.to_null() && t.is_null());
+  std::is_pointer_v<T> || (T::null() && t.is_null());
 };
 
 template <Optionable T>
@@ -13,7 +13,7 @@ T to_null(T obj)
   if constexpr(std::is_pointer_v<T>)
     return nullptr;
   else
-    return obj.to_null();
+    return T::null();
 }
 template <Optionable T>
 T is_null(T obj)
@@ -39,10 +39,6 @@ struct Opt
 
   constexpr bool is_null() const
   { return _status == NONE; }
-
-  // does not destroy underlying type
-  constexpr Opt<T> to_null() const
-  { return { _obj, NONE }; }
 
   constexpr T& get()
   {
@@ -73,16 +69,13 @@ struct Opt<T>
   T _obj;
 
   static constexpr Opt<T> null()
-  { return {T().to_null()}; }
+  { return {T::null()}; }
 
   static constexpr Opt<T> from(T obj)
   { return {obj}; }
 
   constexpr bool is_null() const
   { return is_null(_obj); }
-
-  constexpr Opt<T> to_null() const
-  { return to_null(_obj); }
 
   constexpr T& get()
   {
