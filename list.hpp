@@ -1,5 +1,6 @@
 #pragma once
 #include "serde.hpp"
+#include "traits.hpp"
 #include <algorithm>
 #ifndef H_LIST
 #define H_LIST
@@ -8,9 +9,15 @@
 #include "macros.hpp"
 #include "types.hpp"
 
+// used for size-conserving operations
 template <class T>
 struct View
 {
+  using Self = View<T>;
+  using iterator = Self;
+  using value_type = T;
+  using Indexed = T;
+  using index_t = i32;
   mutable T* _begin;
   u32 _len;
   static constexpr View<T> range(T* start, u32 len)
@@ -46,6 +53,8 @@ struct View
   { _begin++; _len--; return *this; }
   constexpr View<T> operator ++ (int)
   { const View<T> x = *this; _begin++; _len--; return x; }
+  constexpr bool operator <=> (View<T> o)
+  { return o._begin <=> _begin; }
   constexpr T& operator[](i32 index) const
   {
     if (index < 0)
@@ -54,7 +63,19 @@ struct View
     }
     return _begin[index];
   }
+
+  // defined in algo.hpp, all methods are in-place
+
+  constexpr Self& swap(i32 a, i32 b);
+  constexpr Self& sort();
+  constexpr T max() const
+    requires PartialOrder<T>;
+  constexpr T min() const
+    requires PartialOrder<T>;
 };
+
+static_assert(Iterable<View<int>>);
+static_assert(Indexable<View<int>>);
 
 template <class T>
 struct list

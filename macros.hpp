@@ -6,6 +6,7 @@
 #define let const auto
 #define mut auto
 #define mod namespace
+#define trait template <class T> concept
 
 template <class T>
 constexpr T* alloc(u32 s)
