@@ -91,7 +91,7 @@ trait Iterator =
 
 trait Iterable = requires (T i)
 {
-  Iterator<typename T::iterator>;
+  requires Iterator<typename T::iterator>;
   { i.begin() } -> std::same_as<typename T::iterator>;
   { i.end() } -> std::same_as<typename T::iterator>;
 };

@@ -53,8 +53,12 @@ struct View
   { _begin++; _len--; return *this; }
   constexpr View<T> operator ++ (int)
   { const View<T> x = *this; _begin++; _len--; return x; }
-  constexpr bool operator <=> (View<T> o)
-  { return o._begin <=> _begin; }
+  constexpr bool operator == (View<T> o)
+  { return o._begin == _begin; }
+  constexpr bool operator < (View<T> o)
+  { return o._begin > _begin; }
+  constexpr bool operator > (View<T> o)
+  { return o._begin < _begin; }
   constexpr T& operator[](i32 index) const
   {
     if (index < 0)
