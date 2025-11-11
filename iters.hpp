@@ -8,6 +8,7 @@ struct FixedRangeIterator
 {
   using Self = FixedRangeIterator<T>;
   using value_type = T;
+  using iterator = Self;
   T x;
   T end_;
   T step;
@@ -24,7 +25,7 @@ struct FixedRangeIterator
     return ret;
   }
   constexpr bool operator == (Self other) const
-  { return x*step < other.x*other.step; }
+  { return x*step >= other.x*other.step; }
   constexpr T& operator * ()
   { return x; }
   constexpr T& operator * () const
@@ -34,7 +35,12 @@ struct FixedRangeIterator
   { return *this; }
   constexpr Self end() const
   { return { end_, end_, step }; }
+  constexpr T len() const
+  { return (end_ - x + step - 1)/step; }
 };
+
+static_assert(Iterable<FixedRangeIterator<i32>>);
+static_assert(Sized<FixedRangeIterator<i32>>);
 
 template <std::integral T>
 struct LinkedRangeIterator

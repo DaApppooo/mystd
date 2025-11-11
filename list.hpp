@@ -1,11 +1,12 @@
 #pragma once
-#include "serde.hpp"
-#include "traits.hpp"
-#include <algorithm>
 #ifndef H_LIST
 #define H_LIST
+#include <algorithm>
 #include <cassert>
-#include <experimental/type_traits>
+#include <format>
+#include <sstream>
+#include "serde.hpp"
+#include "traits.hpp"
 #include "macros.hpp"
 #include "types.hpp"
 
@@ -51,13 +52,11 @@ struct View
   { return *_begin; }
   constexpr View<T> operator ++ ()
   { _begin++; _len--; return *this; }
-  constexpr View<T> operator ++ (int)
-  { const View<T> x = *this; _begin++; _len--; return x; }
-  constexpr bool operator == (View<T> o)
+  constexpr bool operator == (const View<T> o) const
   { return o._begin == _begin; }
-  constexpr bool operator < (View<T> o)
+  constexpr bool operator < (const View<T> o) const
   { return o._begin > _begin; }
-  constexpr bool operator > (View<T> o)
+  constexpr bool operator > (const View<T> o) const
   { return o._begin < _begin; }
   constexpr T& operator[](i32 index) const
   {
@@ -82,9 +81,9 @@ static_assert(Iterable<View<int>>);
 static_assert(Indexable<View<int>>);
 
 template <class T>
-struct list
+struct List
 {
-  using Self = list<T>;
+  using Self = List<T>;
   using Indexed = T;
   using index_t = i32;
   mutable T* _data;
@@ -94,25 +93,43 @@ struct list
   { return {nullptr, 0, 0}; }
   // unintialized buffer
   static constexpr Self alloc(u32 cap)
-  { return {alloc<T>(cap), 0, cap}; }
+  { return {::alloc<T>(cap), 0, cap}; }
   static constexpr Self filled(T value, u32 size)
   {
-    list<T> self;
-    self._data = alloc<T>(size);
+    List<T> self;
+    self._data = ::alloc<T>(size);
     self._len = self._cap = size;
     std::fill(self._data, self._data+self._len, value);
     return self;
   }
   static constexpr Self from(const View<T> v)
   {
-    list<T> self;
-    self._data = alloc<T>(v._len);
+    List<T> self;
+    self._data = ::alloc<T>(v._len);
     self._len = self._cap = v._len;
     std::copy(v.begin(), v.end(), self._data);
     return self;
   }
+  template <Iterable It_T>
+    requires Sized<It_T>
+  static constexpr Self from(const It_T v)
+  {
+    List<T> self;
+    self._data = ::alloc<T>(v.len());
+    self._cap = self._len = v.len();
+    std::copy(v.begin(), v.end(), self._data);
+    return self;
+  }
+  template <Iterable It_T>
+  static constexpr Self from(const It_T v)
+  {
+    List<T> self;
+    for (const typename It_T::iterator::value_type obj : v)
+      self.push(obj);
+    return self;
+  }
 
-  // check if list state is as expected (eg. if allocation failed or not)
+  // check if List state is as expected (eg. if allocation failed or not)
   constexpr bool ok() const
   { return _data || !_cap; }
   constexpr bool assert_ok() const
@@ -142,7 +159,7 @@ struct list
   constexpr Self& realloc();
   constexpr void destroy();
   constexpr Own<Self> copy() const;
-  constexpr Own<Self> give();
+  constexpr Own<Self> drop();
   constexpr Self& rm(i32 index);
   constexpr Self& rm(u32 begin, u32 end);
   constexpr View<T> to_view() const;
@@ -170,12 +187,13 @@ struct list
   constexpr Self& grow_cap()
   {
     _cap += _cap/2+(_cap<2);
-    _data = alloc<T>(_data, _cap);
+    _data = ::alloc<T>(_data, _cap);
+    return *this;
   }
   constexpr Self& shrink_cap(u32 new_cap)
   {
     assert(new_cap <= _cap);
-    _data = alloc<T>(_data, new_cap);
+    _data = ::alloc<T>(_data, new_cap);
     return *this;
   }
 
@@ -183,18 +201,18 @@ struct list
   static Opt<Self> deserialize(serde::DeserCallback cb, void* data);
 };
 
-static_assert(Copiable<list<int>>);
-static_assert(Giveable<list<int>>);
-static_assert(Destroyable<list<int>>);
-static_assert(Indexable<list<int>>);
-static_assert(serde::Serializable<list<int>>);
-static_assert(serde::Deserializable<list<int>>);
+static_assert(Copiable<List<int>>);
+static_assert(Giveable<List<int>>);
+static_assert(Destroyable<List<int>>);
+static_assert(Indexable<List<int>>);
+static_assert(serde::Serializable<List<int>>);
+static_assert(serde::Deserializable<List<int>>);
 
 #define self (*this)
-#define Self list<T>
+#define Self List<T>
 #define L template <class T> constexpr
 
-L Self& list<T>::extend(View<T> v)
+L Self& List<T>::extend(View<T> v)
 {
   cap(len() + v.len());
   if (!ok())
@@ -204,7 +222,7 @@ L Self& list<T>::extend(View<T> v)
   return self;
 }
 
-L Self& list<T>::insert(T e, i32 idx)
+L Self& List<T>::insert(T e, i32 idx)
 {
   const u32 i = idx < 0 ? len() + idx : idx;
   grow_cap();
@@ -215,7 +233,7 @@ L Self& list<T>::insert(T e, i32 idx)
   return self;
 }
 
-L Self& list<T>::insert(View<T> e, i32 idx)
+L Self& List<T>::insert(View<T> e, i32 idx)
 {
   const u32 i = idx < 0 ? len() + idx : idx;
   cap(len() + e.len());
@@ -226,19 +244,19 @@ L Self& list<T>::insert(View<T> e, i32 idx)
   return self;
 }
 
-L T list<T>::pop()
+L T List<T>::pop()
 {
   _len--;
   return _data[_len];
 }
 
-L Self& list<T>::add_cap(u32 size)
+L Self& List<T>::add_cap(u32 size)
 {
   cap(cap()+size);
   return self;
 }
 
-L Self& list<T>::realloc()
+L Self& List<T>::realloc()
 {
   let new_p = alloc<T>(len());
   if (!new_p)
@@ -254,7 +272,7 @@ L Self& list<T>::realloc()
   return self;
 }
 
-L void list<T>::destroy()
+L void List<T>::destroy()
 {
   if (_data)
   {
@@ -264,19 +282,19 @@ L void list<T>::destroy()
   }
 }
 
-L Own<Self> list<T>::copy() const
+L Own<Self> List<T>::copy() const
 {
   return Self::from(to_view());
 }
 
-L Own<Self> list<T>::give()
+L Own<Self> List<T>::drop()
 {
   Self ret = self;
   self = Self::empty();
   return ret;
 }
 
-L Self& list<T>::rm(i32 idx)
+L Self& List<T>::rm(i32 idx)
 {
   assert(_len > 0);
   const u32 i = idx < 0 ? len() + idx : idx;
@@ -285,7 +303,7 @@ L Self& list<T>::rm(i32 idx)
   return self;
 }
 
-L Self& list<T>::rm(u32 begin_, u32 end_)
+L Self& List<T>::rm(u32 begin_, u32 end_)
 {
   assert(end_ >= begin_);
   if (end_ == begin_)
@@ -297,31 +315,31 @@ L Self& list<T>::rm(u32 begin_, u32 end_)
   return self;
 }
 
-L View<T> list<T>::to_view() const
+L View<T> List<T>::to_view() const
 {
   return View<T>::range(_data, _len);
 }
 
-L Self& list<T>::clear()
+L Self& List<T>::clear()
 {
   _len = 0;
   return self;
 }
 
-L View<T> list<T>::slice(u32 length) const
+L View<T> List<T>::slice(u32 length) const
 {
   assert(length <= _len);
   return View<T>::range(_data, length);
 }
 
-L View<T> list<T>::slice(u32 begin, u32 end) const
+L View<T> List<T>::slice(u32 begin, u32 end) const
 {
   assert(end <= _len);
   assert(begin <= end);
   return View<T>::range(_data+begin, end-begin);
 }
 
-L T& list<T>::operator[] (const i32 i) const
+L T& List<T>::operator[] (const i32 i) const
 {
   const u32 index = i < 0 ? len() + i : i;
   assert(ok());
@@ -330,23 +348,23 @@ L T& list<T>::operator[] (const i32 i) const
   return _data[index];
 }
 
-L Self& list<T>::cap(u32 new_alloc_size)
+L Self& List<T>::cap(u32 new_alloc_size)
 {
   if (new_alloc_size < _cap)
     return self;
-  _data = alloc<T>(_data, new_alloc_size);
+  _data = ::alloc<T>(_data, new_alloc_size);
   _cap = new_alloc_size;
   return self;
 }
 
-L Self& list<T>::len(u32 new_size)
+L Self& List<T>::len(u32 new_size)
 {
   assert(_cap >= new_size);
   _len = new_size;
   return self;
 }
 
-L Self& list<T>::len(T filler, u32 new_size)
+L Self& List<T>::len(T filler, u32 new_size)
 {
   assert(_cap >= new_size);
   if (new_size > len())
@@ -356,7 +374,7 @@ L Self& list<T>::len(T filler, u32 new_size)
 }
 
 template <class T>
-serde::Result list<T>::serialize(serde::SerCallback cb, void* data) const
+serde::Result List<T>::serialize(serde::SerCallback cb, void* data) const
 {
   const u32 temp = 0;
   if (!ok() || is_null())
@@ -382,12 +400,12 @@ serde::Result list<T>::serialize(serde::SerCallback cb, void* data) const
 }
 
 template <class T>
-Opt<Self> list<T>::deserialize(serde::DeserCallback cb, void *data)
+Opt<Self> List<T>::deserialize(serde::DeserCallback cb, void *data)
 {
   u32 temp;
   if (!cb(&temp, sizeof(temp), data))
     return Opt<Self>::null();
-  mut ret = list<T>::alloc(temp);
+  mut ret = List<T>::alloc(temp);
   if (!ret.ok())
     return Opt<Self>::null();
   ret.len(temp);
@@ -412,6 +430,37 @@ Opt<Self> list<T>::deserialize(serde::DeserCallback cb, void *data)
   }
   return Opt<Self>::from(ret);
 }
+
+// formatting stuff
+template <class T>
+struct std::formatter<List<T>, char>
+{
+  template <class ParseContext>
+  constexpr ParseContext::iterator parse(ParseContext& ctx)
+  {
+    return ctx.end();
+  }
+
+  template<class FmtContext>
+  constexpr FmtContext::iterator format(List<T> l, FmtContext& ctx) const
+  {
+    std::ostringstream out;
+    if (l.len() == 0)
+    {
+      out << "[]";
+    }
+    else
+    {
+      out << '[' << std::format("{}", l[0]);
+      for (const T& o : l.slice(1,l.len()))
+      {
+        out << ", " << std::format("{}", o);
+      }
+      out << ']';
+    }
+    return std::ranges::copy(std::move(out).str(), ctx.out()).out;
+  }
+};
 
 #undef self
 #undef Self

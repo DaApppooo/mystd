@@ -1,15 +1,12 @@
 #include "iters.hpp"
 #include <print>
+#include <vector>
 
 int main()
 {
-  i32 max = 15;
-  for (i32 i : range(max))
-  {
-    if (i % 5)
-      max++;
-    std::print("{}\n", i);
-  }
+  std::vector<int> v = {1,2,3};
+  mut l = List<i32>::from(v);
+  return 0;
 }
 
 

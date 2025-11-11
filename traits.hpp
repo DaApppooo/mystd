@@ -21,25 +21,34 @@ trait Indexable =
 // and resets self to the init state
 // (grossly equivalent to a rust move)
 trait Giveable = requires (T g)
-{ { g.give() } -> std::same_as<Own<T>>; };
+{ { g.drop() } -> std::same_as<Own<T>>; };
 trait Destroyable = requires (T d)
 { d.destroy(); };
-trait Copiable = requires (T d)
+trait Copiable = requires (const T d)
 { { d.copy() } -> std::same_as<T>; };
-trait Sized = requires (T o)
+trait Sized = requires (const T o)
 { { o.len() } -> std::convertible_to<std::size_t>; };
 
-trait LessThan = requires (T a, T b)
+trait LessThan = requires (const T a, const T b)
 { {a < b} -> std::same_as<bool>; };
-trait GreaterThan = requires (T a, T b)
+trait GreaterThan = requires (const T a, const T b)
 { {a > b} -> std::same_as<bool>; };
 trait PartialOrder = LessThan<T> || GreaterThan<T>;
-trait Eq = requires (T a, T b)
+trait Eq = requires (const T a, const T b)
 { { a == b } -> std::same_as<bool>; };
-trait NotEq = requires (T a, T b)
+trait NotEq = requires (const T a, const T b)
 { { a != b } -> std::same_as<bool>; };
 trait TotalOrder = std::totally_ordered<T>;
+trait Incr = requires (T a)
+{ { ++a } -> std::same_as<T>; };
 
+template <Incr I>
+constexpr I operator ++ (I& i, int)
+{
+  const I temp = i;
+  ++i;
+  return temp;
+}
 template <GreaterThan T>
 constexpr bool operator < (T a, T b)
 { return b > a; }
