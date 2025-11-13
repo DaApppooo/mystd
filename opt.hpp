@@ -2,13 +2,16 @@
 #include "traits.hpp"
 
 template <class T>
-concept Optionable = requires(T const& t)
+concept Optionable =
+  std::is_pointer_v<T>
+  || requires(T const& t)
 {
-  std::is_pointer_v<T> || (T::null() && t.is_null());
+  { T::null() };
+  { t.is_null() };
 };
 
 template <Optionable T>
-T to_null(T obj)
+constexpr T to_null()
 {
   if constexpr(std::is_pointer_v<T>)
     return nullptr;
@@ -16,7 +19,7 @@ T to_null(T obj)
     return T::null();
 }
 template <Optionable T>
-T is_null(T obj)
+constexpr bool is_null(T obj)
 {
   if constexpr(std::is_pointer_v<T>)
     return obj == nullptr;
@@ -31,6 +34,16 @@ struct Opt
   T _obj;
   enum _Status { SOME, NONE } _status;
 
+  constexpr Opt() = default;
+  constexpr Opt(const Opt<T>&) = default;
+  constexpr Opt(Opt<T>&&) = default;
+  constexpr Opt<T>& operator = (const Opt<T>&) = default;
+  constexpr Opt<T>& operator = (Opt<T>&&) = default;
+
+  constexpr Opt(T o) : _obj(o), _status(SOME) {}
+  constexpr operator T () const
+  { need(!is_null()); return _obj; }
+
   static constexpr Opt<T> null()
   { return { T(), NONE }; }
 
@@ -42,13 +55,13 @@ struct Opt
 
   constexpr T& get()
   {
-    assert(_status == SOME);
+    need(_status == SOME);
     return _obj;
   }
 
   constexpr const T& get() const
   {
-    assert(_status == SOME);
+    need(_status == SOME);
     return _obj;
   }
 
@@ -68,24 +81,34 @@ struct Opt<T>
 {
   T _obj;
 
+  constexpr Opt() = default;
+  constexpr Opt(const Opt<T>&) = default;
+  constexpr Opt(Opt<T>&&) = default;
+  constexpr Opt<T>& operator = (const Opt<T>&) = default;
+  constexpr Opt<T>& operator = (Opt<T>&&) = default;
+
+  constexpr Opt(T o) : _obj(o) {}
+  constexpr operator T () const
+  { need(!is_null()); return _obj; }
+
   static constexpr Opt<T> null()
-  { return {T::null()}; }
+  { return {to_null<T>()}; }
 
   static constexpr Opt<T> from(T obj)
   { return {obj}; }
 
   constexpr bool is_null() const
-  { return is_null(_obj); }
+  { return ::is_null(_obj); }
 
   constexpr T& get()
   {
-    assert(!is_null());
+    need(!is_null());
     return _obj;
   }
 
   constexpr const T& get() const
   {
-    assert(!is_null());
+    need(!is_null());
     return _obj;
   }
 

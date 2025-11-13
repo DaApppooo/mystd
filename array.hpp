@@ -1,6 +1,7 @@
 #ifndef H_ARRAY
 #define H_ARRAY
 #include "list.hpp"
+#include "serde.hpp"
 #include "traits.hpp"
 #include "types.hpp"
 #include <algorithm>
@@ -59,6 +60,10 @@ struct Array
   constexpr u32 len() const { return size; }
   constexpr bool is_empty() const
   { return size == 0; }
+
+  serde::Result serialize(serde::SerCallback cb, void* data) const
+  { return cb(_data, size*sizeof(T), data); }
+  static Opt<Self> deserialize(serde::DeserCallback cb, void* data);
 };
 
 template <class T, u32 size>
@@ -76,6 +81,17 @@ constexpr T& Array<T, size>::operator[](const i32 i) const
   assert(index >= 0);
   assert(index < len());
   return _data[index];
+}
+
+template <class T, u32 size>
+Opt<Array<T, size>> Array<T, size>::deserialize(
+  serde::DeserCallback cb,
+  void* data
+) {
+  Array<T, size> buff;
+  if (cb(buff._data, sizeof(T)*size, data))
+    return serde::FAILURE;
+  return buff;
 }
 
 // formatting stuff

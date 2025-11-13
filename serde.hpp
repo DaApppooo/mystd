@@ -5,7 +5,7 @@
 
 mod serde
 {
-  enum Result { SUCCESS, FAILURE };
+  enum Result { SUCCESS=0, FAILURE=1 };
 
   using SerCallback =
     Result(*)(const void* src, size_t size, void* data);

@@ -1,11 +1,9 @@
-#include "iters.hpp"
-#include <print>
-#include <vector>
+#include "macros.hpp"
 
 int main()
 {
-  std::vector<int> v = {1,2,3};
-  mut l = List<i32>::from(v);
+  i32 x = 5;
+  need(x == 5);
   return 0;
 }
 

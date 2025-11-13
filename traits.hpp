@@ -17,17 +17,32 @@ trait NonPtrIndexable =
 trait Indexable =
   NonPtrIndexable<T> || std::is_pointer_v<T>;
 
+
 // gives ownership to the output value
 // and resets self to the init state
 // (grossly equivalent to a rust move)
-trait Giveable = requires (T g)
+trait NonPrimDropable = requires (T g)
 { { g.drop() } -> std::same_as<Own<T>>; };
+trait Dropable =
+  std::integral<T>
+  || std::floating_point<T>
+  || std::same_as<T, bool>
+  || NonPrimDropable<T>;
 trait Destroyable = requires (T d)
 { d.destroy(); };
 trait Copiable = requires (const T d)
 { { d.copy() } -> std::same_as<T>; };
 trait Sized = requires (const T o)
 { { o.len() } -> std::convertible_to<std::size_t>; };
+
+template <Dropable T>
+Own<T> drop(Own<T>& o)
+{
+  if constexpr(NonPrimDropable<T>)
+    return o.drop();
+  else
+    return o;
+}
 
 trait LessThan = requires (const T a, const T b)
 { {a < b} -> std::same_as<bool>; };

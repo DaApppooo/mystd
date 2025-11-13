@@ -1,6 +1,7 @@
 #ifndef H_ITERS
 #define H_ITERS
-#include "list.hpp"
+#include "traits.hpp"
+#include "types.hpp"
 #include <concepts>
 
 template <std::integral T>
@@ -46,26 +47,26 @@ template <std::integral T>
 struct LinkedRangeIterator
 {
   using Self = LinkedRangeIterator<T>;
-  using value_type = T;
   struct iterator
   {
+    using value_type = T;
     T& x;
     T& end_;
     T step;
   
-    constexpr Self operator ++ ()
+    constexpr iterator operator ++ ()
     {
-      Self ret = *this;
+      iterator ret = *this;
       x += step;
       return ret;
     }
-    constexpr Self operator -- ()
+    constexpr iterator operator -- ()
     {
-      Self ret = *this;
+      iterator ret = *this;
       x += step;
       return ret;
     }
-    constexpr bool operator == (Self other) const
+    constexpr bool operator == (const iterator other) const
     { return x*step >= other.x*other.step; }
 
     constexpr T& operator * () const
@@ -77,10 +78,12 @@ struct LinkedRangeIterator
   T& end_;
   T step;
   
-  constexpr iterator begin() const
+  constexpr iterator begin()
   { return iterator{ x, end_, step }; }
   constexpr iterator end()
   { return iterator{ end_, end_, step }; }
+  constexpr T len() const
+  { return (end_ - x + step - 1)/step; }
 };
 
 template <std::integral T = i32>
@@ -101,5 +104,6 @@ LinkedRangeIterator<T> range(const T begin, T& end)
 template <std::integral T = i32>
 LinkedRangeIterator<T> range(const T begin, T& end, const T step)
 { return {begin, end, step}; }
+
 
 #endif
