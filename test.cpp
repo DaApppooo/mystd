@@ -1,9 +1,8 @@
-#include "macros.hpp"
+#include "opt.hpp"
 
 int main()
 {
-  i32 x = 5;
-  need(x == 5);
+  Opt<int*>(nullptr).get();
   return 0;
 }
 
