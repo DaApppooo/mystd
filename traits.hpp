@@ -18,6 +18,13 @@ trait NonPtrIndexable =
 trait Indexable =
   NonPtrIndexable<T> || std::is_pointer_v<T>;
 
+trait Primitive =
+   std::integral<T>
+|| std::floating_point<T>
+|| std::same_as<T, bool>
+|| std::same_as<T, void>
+|| std::is_pointer_v<T>
+|| std::same_as<T, std::nullptr_t>;
 
 // gives ownership to the output value
 // and resets self to the init state
@@ -25,19 +32,28 @@ trait Indexable =
 trait NonPrimDropable = requires (T g)
 { { g.drop() } -> std::same_as<Own<T>>; };
 trait Dropable =
-  std::integral<T>
-  || std::floating_point<T>
-  || std::same_as<T, bool>
+  Primitive<T>
   || NonPrimDropable<T>;
 trait Destroyable = requires (T d)
 { d.destroy(); };
-trait Copiable = requires (const T d)
+trait Copiable =
+   Primitive<T>
+|| requires (const T& d)
 { { d.copy() } -> std::same_as<T>; };
 trait Sized = requires (const T o)
 { { o.len() } -> std::convertible_to<std::size_t>; };
 
+template <Copiable C>
+constexpr Own<C> copy(const Own<C>& c)
+{
+  if constexpr(Primitive<C>)
+    return c;
+  else
+    return c.copy();
+}
+
 template <Dropable T>
-Own<T> drop(Own<T>& o)
+constexpr Own<T> drop(Own<T>& o)
 {
   if constexpr(NonPrimDropable<T>)
     return o.drop();
