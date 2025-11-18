@@ -6,10 +6,22 @@
 #include "serde.hpp"
 #include <algorithm>
 #include <format>
+#include <iterator>
 #include <sstream>
 
+
+trait BufferLike =
+   std::random_access_iterator<T>
+&& Indexable<T>
+&& Sized<T>
+&& requires { { T::empty() } -> std::same_as<T>; };
+
+template <Indexable It, BufferLike BufferUInt>
+struct BasicSelection;
+template <class T>
+struct HeapBuffer;
 template <Indexable It>
-struct Selection;
+using Selection = BasicSelection<It, HeapBuffer<u32>>;
 
 template <class T>
 struct View

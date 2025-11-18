@@ -3,6 +3,7 @@
 #include "list.hpp"
 #include "traits.hpp"
 #include <algorithm>
+#include <iterator>
 
 // overload of std algorithm with iterable expansion
 
@@ -43,24 +44,56 @@ constexpr bool in(const It& it, typename It::iterator::value_type x)
   return false;
 }
 // O(n) find, returns matching iterator
-template <Iterator It>
+template <Iterable It>
 constexpr It::iterator find(const It& it, typename It::iterator::value_type x)
 {
   return std::find(it.begin(), it.end(), x);
 }
 // O(n) find, returns matching iterator
-template <Iterator It, class Pred>
+template <Iterable It, class Pred>
 constexpr It::iterator find_if(const It& it, Pred x)
 {
   return std::find_if(it.begin(), it.end(), x);
 }
 // O(n) find, returns matching iterator
-template <Iterator It, class Pred>
+template <Iterable It, class Pred>
 constexpr It::iterator find_if_not(const It& it, Pred x)
 {
   return std::find_if_not(it.begin(), it.end(), x);
 }
-
-
+// O(log(n)) find, returns matching iterator
+template <Iterable It>
+  requires TotalOrder<std::iter_value_t<typename It::iterator>>
+constexpr It::iterator find_ordered(
+  const It& it,
+  std::iter_value_t<typename It::iterator> x
+) {
+  typename It::iterator b = it.begin();
+  typename It::iterator e = it.end();
+  --e;
+  while (*b < *e)
+  {
+    if (*b == x)
+      return b;
+    else if (*e == x)
+      return e;
+    const typename It::iterator m = b+(e-b)/2;
+    if (*m == x)
+      return m;
+    else if (*m < x)
+    {
+      b = m;
+      ++b;
+      --e;
+    }
+    else
+    {
+      e = m;
+      --e;
+      ++b;
+    }
+  }
+  return it.end();
+}
 
 #endif

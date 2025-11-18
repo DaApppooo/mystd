@@ -1,5 +1,6 @@
 #ifndef H_ITERS
 #define H_ITERS
+#include "buffer.hpp"
 #include "list.hpp"
 #include "traits.hpp"
 #include "types.hpp"
@@ -40,10 +41,6 @@ struct FixedRangeIterator
   constexpr T len() const
   { return (end_ - x + step - 1)/step; }
 };
-
-static_assert(Iterable<FixedRangeIterator<i32>>);
-static_assert(BidirectionalIterator<FixedRangeIterator<i32>>);
-static_assert(Sized<FixedRangeIterator<i32>>);
 
 template <std::integral T>
 struct LinkedRangeIterator
@@ -107,18 +104,13 @@ template <std::integral T = i32>
 LinkedRangeIterator<T> range(const T begin, T& end, const T step)
 { return {begin, end, step}; }
 
-trait BufferLike =
-   Iterable<T>
-&& Indexable<T>
-&& Sized<T>
-&& ;
 
-template <Indexable Idxbl, >
+template <Indexable Idxbl, BufferLike BufferUInt>
 struct BasicSelection
 {
-  using Self = Selection<Idxbl>;
+  using Self = BasicSelection<Idxbl, BufferUInt>;
   Idxbl& it;
-  List<u32> indicies;
+  BufferUInt indicies;
 
   struct iterator
   {
@@ -150,16 +142,19 @@ struct BasicSelection
   };
 
   static constexpr Self from(Idxbl& idxbl)
-  { return { idxbl, List<u32>::empty() }; }
+  { return { idxbl, BufferUInt::empty() }; }
+
+  
 };
 
-
+template <Indexable T>
+using Selection = BasicSelection<T, HeapBuffer<u32>>;
 
 template <class T>
 template <class Self_>
   requires std::same_as<Self_, View<T>>
 constexpr Selection<View<T>> View<T>::sel() const
-{ return { *this, List<u32>::empty() }; }
+{ return { *this, View<u32>::empty() }; }
 
 
 
