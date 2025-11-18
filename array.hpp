@@ -10,7 +10,7 @@ template <class T, u32 size>
 struct Array
 {
   using Self = Array<T, size>;
-  using Indexed = T;
+  using indexed_type = T;
   using index_t = i32;
   mutable T _data[size];
 

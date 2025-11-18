@@ -1,8 +1,11 @@
-#include "opt.hpp"
+// #include "iters.hpp"
+#include "./buffer.hpp"
+#include "list.hpp"
+#include <print>
 
 int main()
 {
-  Opt<int*>(nullptr).get();
+  mut b = list[1,2,3];
   return 0;
 }
 

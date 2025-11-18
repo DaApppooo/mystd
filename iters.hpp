@@ -1,5 +1,6 @@
 #ifndef H_ITERS
 #define H_ITERS
+#include "list.hpp"
 #include "traits.hpp"
 #include "types.hpp"
 #include <concepts>
@@ -13,17 +14,15 @@ struct FixedRangeIterator
   T x;
   T end_;
   T step;
-  constexpr Self operator ++ ()
+  constexpr Self& operator ++ () // ++(int) is auto-impl by traits.hpp
   {
-    Self ret = *this;
     x += step;
-    return ret;
+    return *this;
   }
-  constexpr Self operator -- ()
+  constexpr Self& operator -- ()
   {
-    Self ret = *this;
     x -= step;
-    return ret;
+    return *this;
   }
   constexpr bool operator == (Self other) const
   { return x*step >= other.x*other.step; }
@@ -31,6 +30,8 @@ struct FixedRangeIterator
   { return x; }
   constexpr T& operator * () const
   { return x; }
+  constexpr T operator - (Self other) const
+  { return x - other.x; }
 
   constexpr Self begin() const
   { return *this; }
@@ -41,6 +42,7 @@ struct FixedRangeIterator
 };
 
 static_assert(Iterable<FixedRangeIterator<i32>>);
+static_assert(BidirectionalIterator<FixedRangeIterator<i32>>);
 static_assert(Sized<FixedRangeIterator<i32>>);
 
 template <std::integral T>
@@ -104,6 +106,61 @@ LinkedRangeIterator<T> range(const T begin, T& end)
 template <std::integral T = i32>
 LinkedRangeIterator<T> range(const T begin, T& end, const T step)
 { return {begin, end, step}; }
+
+trait BufferLike =
+   Iterable<T>
+&& Indexable<T>
+&& Sized<T>
+&& ;
+
+template <Indexable Idxbl, >
+struct BasicSelection
+{
+  using Self = Selection<Idxbl>;
+  Idxbl& it;
+  List<u32> indicies;
+
+  struct iterator
+  {
+    using value_type = typename Idxbl::indexed_type;
+    Idxbl& it;
+    u32* pt;
+
+    // for comparison, same iterable is assumed
+    constexpr bool operator > (iterator it) const
+    { return pt > it.pt; }
+    constexpr bool operator == (iterator it) const
+    { return pt == it.pt; }
+    
+    constexpr value_type& operator * () const
+    { return *it; }
+    constexpr value_type& operator * ()
+    { return *it; }
+
+    constexpr iterator& operator ++ ()
+    { pt++; return *this; }
+    
+    constexpr iterator& operator -- ()
+    { pt--; return *this; }
+
+    constexpr value_type& operator [] (const u32 idx) const
+    { return it[pt[idx]]; }
+    constexpr value_type& operator [] (const u32 idx)
+    { return it[pt[idx]]; }
+  };
+
+  static constexpr Self from(Idxbl& idxbl)
+  { return { idxbl, List<u32>::empty() }; }
+};
+
+
+
+template <class T>
+template <class Self_>
+  requires std::same_as<Self_, View<T>>
+constexpr Selection<View<T>> View<T>::sel() const
+{ return { *this, List<u32>::empty() }; }
+
 
 
 #endif
