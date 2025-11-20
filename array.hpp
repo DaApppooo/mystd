@@ -12,7 +12,7 @@ struct Array
   using Self = Array<T, size>;
   using indexed_type = T;
   using index_t = i32;
-  mutable T _data[size];
+  T _data[size];
 
   static constexpr Self filled(T value)
   {

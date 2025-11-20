@@ -1,16 +1,15 @@
 // #include "iters.hpp"
 #include "./buffer.hpp"
-#include "list.hpp"
-#include "algo.hpp"
+#include "array.hpp"
 #include <print>
 using namespace std;
 
+i32 f(const i32& x)
+{ return x + 1; }
+
 int main()
 {
-  let L = list[1,2,3,4,5,6];
-  let res = find_ordered(L, 5);
-  println("{}", res - L.begin());
-  L.destroy();
+  println("{}", view[1,2,3]);
   return 0;
 }
 
