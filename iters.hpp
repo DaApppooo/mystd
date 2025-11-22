@@ -105,7 +105,7 @@ LinkedRangeIterator<T> range(const T begin, T& end, const T step)
 { return {begin, end, step}; }
 
 
-template <Indexable Idxbl, BufferLike BufferUInt>
+template <Indexable Idxbl, class BufferUInt>
 struct BasicSelection
 {
   using Self = BasicSelection<Idxbl, BufferUInt>;

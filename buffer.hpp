@@ -4,6 +4,7 @@
 #include "types.hpp"
 #include "macros.hpp"
 #include "serde.hpp"
+#include "_algo_macros.hpp"
 #include <algorithm>
 #include <concepts>
 #include <format>
@@ -19,7 +20,7 @@ trait BufferLike =
 && requires(const T x) { { x.pushable() } -> std::same_as<bool>; }
 && requires(T x, typename T::indexed_type y) { { x.push(y) }; };
 
-template <Indexable It, BufferLike BufferUInt>
+template <Indexable It, class BufferUInt>
 struct BasicSelection;
 template <class T>
 struct HeapBuffer;
@@ -35,6 +36,18 @@ struct View
   using index_t = i32;
   T* _begin;
   u32 _len;
+  constexpr View() = default;
+  constexpr View(const View<T>&) = default;
+  constexpr View(View<T>&&) = default;
+  constexpr Self& operator = (const Self&) = default;
+  constexpr View(T* p, u32 l) : _begin(p), _len(l) {}
+  constexpr View(T* p) : _begin(p) {}
+  template <class It>
+    requires Sized<T> && std::random_access_iterator<typename It::iterator>
+  constexpr View(const It& it)
+  { return Self::range(&*(it.begin()), it.len()); }
+
+
   static constexpr View<T> range(T* start, u32 len)
   { return {start, len}; }
   static constexpr View<T> from(T* start)
@@ -89,13 +102,7 @@ struct View
   serde::Result serialize(serde::SerCallback cb, void* data) const;
 
   // defined in algo.hpp, all methods are in-place
-
-  constexpr Self& swap(i32 a, i32 b);
-  constexpr Self& sort();
-  constexpr T max() const
-    requires PartialOrder<T>;
-  constexpr T min() const
-    requires PartialOrder<T>;
+  _ALGO_INDEXABLE_IMPL
 
   // defined in iters.hpp
   
@@ -257,6 +264,9 @@ struct StackBuffer
   template <class Self_ = Self>
     requires std::same_as<Self_, Self>
   static Opt<Self_> deserialize(serde::DeserCallback cb, void* data);
+
+  // defined in algo.hpp, all methods are in-place
+  _ALGO_INDEXABLE_IMPL
 };
 
 // A buffer allocated on the stack
@@ -390,6 +400,9 @@ struct HeapBuffer
   template <class Self_ = Self>
     requires std::same_as<Self_, Self>
   constexpr Selection<Self> sel() const;
+
+  // defined in algo.hpp, all methods are in-place
+  _ALGO_INDEXABLE_IMPL
 };
 
 #define self (*this)

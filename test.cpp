@@ -1,15 +1,37 @@
 // #include "iters.hpp"
-#include "./buffer.hpp"
-#include "array.hpp"
-#include <print>
+#include "enum.hpp"
+#include <iostream>
+#include <vector>
 using namespace std;
 
-i32 f(const i32& x)
-{ return x + 1; }
+struct Triangle {
+  float base, hauteur;
+  float aire() const { return base * hauteur; }
+};
+struct Carre {
+  float cote;
+  float aire() const { return cote * cote; }
+};
+using Polygone = Enum<Triangle, Carre>;
 
 int main()
 {
-  println("{}", view[1,2,3]);
+  vector<Polygone> polys = {
+    Carre{5.f},
+    Triangle{4.f,9.f},
+    Triangle{3.f, 4.f}
+  };
+  
+  for (const Polygone& p : polys)
+  {
+    p.match(
+      [](const Triangle& t)
+      { cout << "Triangle d'aire " << t.aire() << endl; },
+      [](const Carre& c)
+      { cout << "Carre d'aire " << c.aire() << endl; }
+    );
+  }
+  
   return 0;
 }
 
