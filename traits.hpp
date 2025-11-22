@@ -40,11 +40,24 @@ trait Copiable =
    Primitive<T>
 || requires (const T& d)
 { { d.copy() } -> std::same_as<T>; };
-trait Sized = requires (const T o)
-{ { o.len() } -> std::convertible_to<std::size_t>; };
+trait _ImplSize = requires (const T o)
+  { { o.size() } -> std::convertible_to<std::size_t>; };
+trait Sized =
+  requires (const T o)
+  { { o.len() } -> std::convertible_to<std::size_t>; }
+  || _ImplSize<T>;
+template <Sized S>
+constexpr size_t size(const Ref<S>& c)
+{
+  // prefer .size (because math::Vec.len != math::Vec.size)
+  if constexpr(_ImplSize<S>)
+    return c.size();
+  else
+    return c.len();
+}
 
 template <Copiable C>
-constexpr Own<C> copy(const Own<C>& c)
+constexpr Own<C> copy(const Ref<C>& c)
 {
   if constexpr(Primitive<C>)
     return c;

@@ -216,15 +216,15 @@ struct alignas(std::max({4UL, alignof(T)...})) Enum
   { return type; }
 };
 
-struct _EnumOptNull {};
+struct Empty {};
 
 template <class... Ts>
-struct alignas(std::max({4UL, alignof(Ts)...})) Enum<_EnumOptNull, Ts...>
+struct alignas(std::max({4UL, alignof(Ts)...})) Enum<Empty, Ts...>
 {
-  using Self = Enum<_EnumOptNull, Ts...>;
-  using TypesTuple = std::tuple<_EnumOptNull, Ts...>;
+  using Self = Enum<Empty, Ts...>;
+  using TypesTuple = std::tuple<Empty, Ts...>;
   static constexpr size_t _OBJ_SIZE
-    = std::max({sizeof(_EnumOptNull), sizeof(Ts)...});
+    = std::max({sizeof(Empty), sizeof(Ts)...});
   static constexpr size_t _OBJ_COUNT = sizeof...(Ts)+1;
   uint32_t type;
   char _data[_OBJ_SIZE];
@@ -303,7 +303,7 @@ struct alignas(std::max({4UL, alignof(Ts)...})) Enum<_EnumOptNull, Ts...>
     requires (!std::is_same_v<R, void>)
   constexpr R match(std::function<R(const Ts&)>... funcs) const
   {
-    const auto t = std::tuple([](const _EnumOptNull&){}, funcs...);
+    const auto t = std::tuple([](const Empty&){}, funcs...);
     const uint32_t idx = type;
     const char* data = _data;
     R ret;
@@ -316,7 +316,7 @@ struct alignas(std::max({4UL, alignof(Ts)...})) Enum<_EnumOptNull, Ts...>
     requires (!std::is_same_v<R, void>)
   constexpr R match(std::function<R(Ts&)>... funcs)
   {
-    const auto t = std::tuple([](const _EnumOptNull&){}, funcs...);
+    const auto t = std::tuple([](const Empty&){}, funcs...);
     const uint32_t idx = type;
     const char* data = _data;
     R ret;
@@ -327,7 +327,7 @@ struct alignas(std::max({4UL, alignof(Ts)...})) Enum<_EnumOptNull, Ts...>
   }
   constexpr void match(std::function<void(const Ts&)>... funcs) const
   {
-    const auto t = std::tuple([](const _EnumOptNull&){}, funcs...);
+    const auto t = std::tuple([](const Empty&){}, funcs...);
     const uint32_t idx = type;
     const char* data = _data;
     _enum_utils::with_n<_OBJ_COUNT>(idx, [&t, &data](auto i) {
@@ -336,7 +336,7 @@ struct alignas(std::max({4UL, alignof(Ts)...})) Enum<_EnumOptNull, Ts...>
   }
   constexpr void match(std::function<void(Ts&)>... funcs)
   {
-    const auto t = std::tuple([](const _EnumOptNull&){}, funcs...);
+    const auto t = std::tuple([](const Empty&){}, funcs...);
     const uint32_t idx = type;
     const char* data = _data;
     _enum_utils::with_n<_OBJ_COUNT>(idx, [&t, &data](auto i) {
@@ -385,9 +385,6 @@ struct alignas(std::max({4UL, alignof(Ts)...})) Enum<_EnumOptNull, Ts...>
   constexpr operator size_t () const
   { return type; }
 };
-
-template <class... T>
-constexpr 
 
 // useful if you want to generate a C enumeration when you want an actual
 // switch statement for your object
