@@ -1,9 +1,9 @@
 #ifndef H_ARRAY
 #define H_ARRAY
-#include "list.hpp"
 #include "serde.hpp"
 #include "traits.hpp"
 #include "types.hpp"
+#include "buffer.hpp"
 #include <algorithm>
 
 template <class T, u32 size>

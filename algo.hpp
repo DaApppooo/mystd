@@ -1,9 +1,9 @@
 #ifndef H_ALGO
 #define H_ALGO
 #include "buffer.hpp"
-#include "list.hpp"
 #include "_algo_macros.hpp"
 #include "traits.hpp"
+#include "array.hpp"
 #include <algorithm>
 #include <iterator>
 
@@ -11,7 +11,7 @@
 
 // Same as std::memmove : UB if dst cannot contain src
 template <Iterable I1, Iterable I2> // raw copy
-constexpr void copy(I1 const& dst, I2 const& src)
+constexpr void copy(I1 dst, I2 const& src)
 { std::copy(src.begin(), src.end(), dst.begin()); }
 template <Iterable I> // fill with copies
 constexpr void fill(I const& dst, typename I::iterator::value_type x)

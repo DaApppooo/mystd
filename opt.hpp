@@ -1,3 +1,5 @@
+#ifndef H_OPT
+#define H_OPT
 #include <type_traits>
 #include "traits.hpp"
 
@@ -122,4 +124,5 @@ struct Opt<T>
         _obj.destroy();
   }
 };
+#endif // H_OPT
 

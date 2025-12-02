@@ -7,6 +7,7 @@
 #include "_algo_macros.hpp"
 #include <algorithm>
 #include <concepts>
+#include <cstring>
 #include <format>
 #include <iterator>
 #include <sstream>
@@ -45,11 +46,11 @@ struct View
   template <class It>
     requires Sized<T> && std::random_access_iterator<typename It::iterator>
   constexpr View(const It& it)
-  { return Self::range(&*(it.begin()), it.len()); }
-
+    : _begin(&*(it.begin())), _len(it.len()) {}
 
   static constexpr View<T> range(T* start, u32 len)
   { return {start, len}; }
+  static constexpr View<T> cstr(T* start) = delete;
   static constexpr View<T> from(T* start)
   { return {start, 0U}; }
   View<T> to(T* end) const
@@ -58,6 +59,10 @@ struct View
   { return {nullptr, 0U}; }
   static constexpr View<T> null()
   { return empty(); }
+  constexpr View<typename std::remove_const<T>::type> to_mut() const
+  { return { (typename std::remove_const<T>::type*)_begin, _len }; }
+  constexpr View<const T> to_const() const
+  { return { (const T*)_begin, _len }; }
   constexpr bool is_null() const
   { return !_begin; }
   constexpr T* begin()
@@ -76,7 +81,7 @@ struct View
   { need(_len > 0); return _begin[0]; }
   constexpr T& last() const
   { need(_len > 0); return _begin[_len-1]; }
-  constexpr u32 len() { return _len; }
+  constexpr u32 len() const { return _len; }
   constexpr T& operator * () const
   { return *_begin; }
   constexpr T& operator * ()
@@ -84,11 +89,15 @@ struct View
   constexpr View<T> operator ++ ()
   { _begin++; _len--; return *this; }
   constexpr bool operator == (const View<T> o) const
-  { return o._begin == _begin; }
-  constexpr bool operator < (const View<T> o) const
-  { return o._begin > _begin; }
-  constexpr bool operator > (const View<T> o) const
-  { return o._begin < _begin; }
+  {
+    if (o.len() != len())
+      return false;
+    const T* a = _begin;
+    const T* b = o._begin;
+    for (u32 i = 0; i < _len; i++)
+    { if (!(*a == *b)) return false; ++a; ++b; }
+    return true;
+  }
   constexpr T& operator[](i32 index) const
   {
     if (index < 0)
@@ -97,6 +106,10 @@ struct View
     }
     return _begin[index];
   }
+  constexpr View<T> operator[](u32 start, u32 end) const
+  { return View<T>::range(_begin+start, end-start); }
+  constexpr View<T>& shorten(u32 diff)
+  { _len -= diff; return *this; }
 
   // serde
   serde::Result serialize(serde::SerCallback cb, void* data) const;
@@ -110,6 +123,13 @@ struct View
     requires std::same_as<Self_, Self>
   constexpr Selection<Self> sel() const;
 };
+
+template <>
+constexpr View<const char> View<const char>::cstr(const char* s)
+{ return View<const char>::range(s, strlen(s)); }
+template <>
+constexpr View<char> View<char>::cstr(char* s)
+{ return View<char>::range(s, strlen(s)); }
 
 // A buffer allocated on the stack
 template <class T, u32 _cap>
