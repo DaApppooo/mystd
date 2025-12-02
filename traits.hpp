@@ -6,6 +6,13 @@
 #include <type_traits>
 #include "macros.hpp"
 
+template <class T>
+using remove_ref = std::remove_reference<T>::type;
+template <class T>
+using remove_const = std::remove_const<T>::type;
+template <class T>
+using remove_ptr = std::remove_pointer<T>::type;
+
 trait NonPtrIndexable =
    requires { typename T::index_t; }
 && requires { typename T::indexed_type; }

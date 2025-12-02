@@ -36,7 +36,7 @@ struct Opt
   T _obj;
   enum _Status { SOME, NONE } _status;
 
-  constexpr Opt() = default;
+  constexpr Opt() : _status(NONE) {}
   constexpr Opt(const Opt<T>&) = default;
   constexpr Opt(Opt<T>&&) = default;
   constexpr Opt<T>& operator = (const Opt<T>&) = default;
