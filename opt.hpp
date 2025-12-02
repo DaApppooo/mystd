@@ -29,8 +29,7 @@ constexpr bool is_null(T obj)
     return obj.is_null();
 }
 
-template <class T>
-  requires (Optionable<T> || !Optionable<T>)
+template <class T = void>
 struct Opt
 {
   T _obj;
@@ -41,10 +40,7 @@ struct Opt
   constexpr Opt(Opt<T>&&) = default;
   constexpr Opt<T>& operator = (const Opt<T>&) = default;
   constexpr Opt<T>& operator = (Opt<T>&&) = default;
-
   constexpr Opt(T o) : _obj(o), _status(SOME) {}
-  constexpr operator T () const
-  { need(!is_null()); return _obj; }
 
   static constexpr Opt<T> null()
   { return { T(), NONE }; }
@@ -76,6 +72,18 @@ struct Opt
       if (_status == SOME)
         _obj.destroy();
   }
+};
+
+template <>
+struct Opt<void>
+{
+  struct _util_none
+  {
+    template <class T>
+    constexpr operator Opt<T> () const
+    { return Opt<T>(); }
+  };
+  static constexpr _util_none NONE;
 };
 
 template <Optionable T>

@@ -107,7 +107,7 @@ struct StackLinFixTree
   {
     if (len)
       return _data[0];
-    return Opt<node_type>{};
+    return Opt<>::NONE;
   }
   
 };
