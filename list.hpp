@@ -4,6 +4,7 @@
 #include <initializer_list>
 #include "macros.hpp"
 #include "buffer.hpp"
+#include "array.hpp"
 
 constexpr struct {
   template <class T, class... Ts>
@@ -17,12 +18,12 @@ constexpr struct {
 
 constexpr struct {
   template <class T, class... Ts>
-  constexpr View<const T> operator [] (T arg0, Ts... args) const
+  constexpr Array<T, 1+sizeof...(Ts)> operator [] (T arg0, Ts... args) const
   {
     const std::initializer_list<T> init_ls = {arg0, args...};
-    let v = View<const T>::from(&*(init_ls.begin())).to(&*(init_ls.end()));
+    let v = Array<T, 1+sizeof...(Ts)>::from(init_ls);
     return v;
   }
-} view;
+} array;
 
 #endif

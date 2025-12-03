@@ -4,7 +4,10 @@
 #include "types.hpp"
 #include "macros.hpp"
 #include "serde.hpp"
+#include "_algo_macros.hpp"
 #include <algorithm>
+#include <concepts>
+#include <cstring>
 #include <format>
 #include <iterator>
 #include <sstream>
@@ -13,7 +16,9 @@
 trait BufferLike =
    std::random_access_iterator<typename T::iterator>
 && Sized<T>
-&& requires { { T::empty() } -> std::same_as<T>; };
+&& requires { { T::empty() } -> std::same_as<T>; }
+&& requires(const T x) { { x.pushable() } -> std::same_as<bool>; }
+&& requires(T x, typename T::indexed_type y) { { x.push(y) }; };
 
 template <Indexable It, class BufferUInt>
 struct BasicSelection;
@@ -31,8 +36,20 @@ struct View
   using index_t = i32;
   T* _begin;
   u32 _len;
+  constexpr View() = default;
+  constexpr View(const View<T>&) = default;
+  constexpr View(View<T>&&) = default;
+  constexpr Self& operator = (const Self&) = default;
+  constexpr View(T* p, u32 l) : _begin(p), _len(l) {}
+  constexpr View(T* p) : _begin(p) {}
+  template <class It>
+    requires Sized<T> && std::random_access_iterator<typename It::iterator>
+  constexpr View(const It& it)
+    : _begin(&*(it.begin())), _len(it.len()) {}
+
   static constexpr View<T> range(T* start, u32 len)
   { return {start, len}; }
+  static constexpr View<T> cstr(T* start) = delete;
   static constexpr View<T> from(T* start)
   { return {start, 0U}; }
   View<T> to(T* end) const
@@ -41,6 +58,10 @@ struct View
   { return {nullptr, 0U}; }
   static constexpr View<T> null()
   { return empty(); }
+  constexpr View<typename std::remove_const<T>::type> to_mut() const
+  { return { (typename std::remove_const<T>::type*)_begin, _len }; }
+  constexpr View<const T> to_const() const
+  { return { (const T*)_begin, _len }; }
   constexpr bool is_null() const
   { return !_begin; }
   constexpr T* begin()
@@ -59,7 +80,7 @@ struct View
   { need(_len > 0); return _begin[0]; }
   constexpr T& last() const
   { need(_len > 0); return _begin[_len-1]; }
-  constexpr u32 len() { return _len; }
+  constexpr u32 len() const { return _len; }
   constexpr T& operator * () const
   { return *_begin; }
   constexpr T& operator * ()
@@ -67,11 +88,15 @@ struct View
   constexpr View<T> operator ++ ()
   { _begin++; _len--; return *this; }
   constexpr bool operator == (const View<T> o) const
-  { return o._begin == _begin; }
-  constexpr bool operator < (const View<T> o) const
-  { return o._begin > _begin; }
-  constexpr bool operator > (const View<T> o) const
-  { return o._begin < _begin; }
+  {
+    if (o.len() != len())
+      return false;
+    const T* a = _begin;
+    const T* b = o._begin;
+    for (u32 i = 0; i < _len; i++)
+    { if (!(*a == *b)) return false; ++a; ++b; }
+    return true;
+  }
   constexpr T& operator[](i32 index) const
   {
     if (index < 0)
@@ -80,18 +105,16 @@ struct View
     }
     return _begin[index];
   }
+  constexpr View<T> operator[](u32 start, u32 end) const
+  { return View<T>::range(_begin+start, end-start); }
+  constexpr View<T>& shorten(u32 diff)
+  { _len -= diff; return *this; }
 
   // serde
   serde::Result serialize(serde::SerCallback cb, void* data) const;
 
   // defined in algo.hpp, all methods are in-place
-
-  constexpr Self& swap(i32 a, i32 b);
-  constexpr Self& sort();
-  constexpr T max() const
-    requires PartialOrder<T>;
-  constexpr T min() const
-    requires PartialOrder<T>;
+  _ALGO_INDEXABLE_IMPL
 
   // defined in iters.hpp
   
@@ -103,13 +126,169 @@ struct View
   constexpr Selection<Self> sel();
 };
 
+template <>
+constexpr View<const char> View<const char>::cstr(const char* s)
+{ return View<const char>::range(s, strlen(s)); }
+template <>
+constexpr View<char> View<char>::cstr(char* s)
+{ return View<char>::range(s, strlen(s)); }
+
 // A buffer allocated on the stack
-template <class T, u32 cap>
+template <class T, u32 _cap>
 struct StackBuffer
 {
-  T _data[cap];
+  using Self = StackBuffer<T, _cap>;
+  using iterator = T*;
+  using indexed_type = T;
+  using index_t = i32;
+  T _data[_cap];
   u32 _len;
+  static constexpr Self init()
+  { return {{}, 0}; }
+  static constexpr Self filled(T value)
+  {
+    Self self;
+    self._data = ::alloc<T>(_cap);
+    self._len = _cap;
+    std::fill(self._data, self._data+self._len, value);
+    return self;
+  }
+  static constexpr Self from(const View<const T> v)
+  {
+    need(v._len <= _cap);
+    Self self;
+    self._data = ::alloc<T>(v._len);
+    self._len = v._len;
+    std::copy(v.begin(), v.end(), self._data);
+    return self;
+  }
+  template <Iterable It_T>
+    requires Sized<It_T>
+  static constexpr Self from(const It_T v)
+  {
+    Self self;
+    self._data = ::alloc<T>(v.len());
+    self._len = v.len();
+    std::copy(v.begin(), v.end(), self._data);
+    return self;
+  }
+  template <Iterable It_T>
+  static constexpr Self from(const It_T v)
+  {
+    Self self;
+    for (const typename It_T::iterator::value_type obj : v)
+    {
+      self.push(obj);
+    }
+    return self;
+  }
+  constexpr bool is_null() const
+  { return _len > _cap; }
+  static constexpr Self null()
+  { return Self{{}, _cap+1}; }
+  
+  constexpr Self& push(const T& obj)
+  {
+    need(_len < _cap);
+    std::copy(&obj, 1+&obj, _data+(_len++));
+    return *this;
+  }
+  constexpr bool pushable() const
+  { return _len < _cap; }
 
+  // Return value isn't destroyed
+  constexpr T& pop()
+  { need(_len > 0); return _data[_len--]; }
+
+  constexpr Self& extend(const View<const T>& ext)
+  {
+    need(_len + ext._len <= _cap);
+    std::copy(ext.begin(), ext.end(), _data+_len);
+    _len += ext._len;
+    return *this;
+  }
+  constexpr Self& insert(const T& element, i32 index)
+  {
+    const u32 i = std::clamp(index < 0 ? _len+index : index, 0U, _len);
+    need(_len < _cap);
+    std::copy(_data+i, _data+_len, _data+i+1);
+    std::copy(&element, 1+&element, _data+i);
+    ++_len;
+    return *this;
+  }
+  constexpr Self& insert(const View<const T>& v, i32 index)
+  {
+    const u32 i = std::clamp(index < 0 ? _len+index : index, 0U, _len);
+    need(_len + v._len <= _cap);
+    std::copy(_data+i, _data+_len, _data+i+v._len);
+    std::copy(v.begin(), v.end(), _data+_len);
+    _len += v._len;
+    return *this;
+  }
+  constexpr Own<Self> copy() const
+  {
+    Self r;
+    std::copy(_data, _data+_len, r._data);
+    r._len = _len;
+    return r;
+  }
+  constexpr Self& rm(i32 index)
+  {
+    const u32 i = index < 0 ? _len+index : index;
+    need(i < _len);
+    need(i >= 0);
+    need(_len > 0);
+    std::copy(_data+i+1, _data+_len, _data+i);
+    return *this;
+  }
+  constexpr Self& rm(u32 begin, u32 end)
+  {
+    need(end <= _len);
+    need(begin <= end);
+    need(_len >= end - begin);
+    std::copy(_data+end, _data+_len, _data+begin);
+    return *this;
+  }
+  constexpr View<T> to_view() const
+  { return View<T>::range(_data, _len); }
+  constexpr Self& clear()
+  { _len = 0; return *this; }
+  constexpr View<T> slice(u32 length) const
+  { return View<T>::range(_data, length); }
+  constexpr View<T> slice(u32 begin, u32 end) const
+  { return View<T>::from(_data+begin).to(_data+end); }
+  constexpr T& operator[](const i32 index) const
+  {
+    const u32 i = index < 0 ? _len+index : index;
+    need(i < _len);
+    need(i >= 0);
+    return _data[index];
+  }
+  constexpr T& last() const
+  { return _data[_len-1]; }
+  constexpr T& first() const
+  { return _data[0]; }
+  constexpr T* begin() const
+  { return to_view().begin(); }
+  constexpr T* end() const
+  { return to_view().end(); }
+
+  constexpr T* data() const { return _data; }
+  constexpr u32 len() const { return _len; }
+  constexpr u32 cap() const { return _cap; }
+  constexpr Self& len(u32 new_len)
+  { need(new_len < _cap); _len = new_len; return *this; }
+
+  constexpr bool is_empty() const
+  { return _len == 0; }
+  inline serde::Result serialize(serde::SerCallback cb, void* data) const
+  { return to_view().serialize(cb, data); }
+  template <class Self_ = Self>
+    requires std::same_as<Self_, Self>
+  static Opt<Self_> deserialize(serde::DeserCallback cb, void* data);
+
+  // defined in algo.hpp, all methods are in-place
+  _ALGO_INDEXABLE_IMPL
 };
 
 // A buffer allocated on the stack
@@ -128,7 +307,7 @@ struct HeapBuffer
   // unintialized buffer
   static constexpr Self alloc(u32 cap)
   { return {::alloc<T>(cap), 0, cap}; }
-  static constexpr Self filled(T value, u32 size)
+  static constexpr Self filled(const T& value, u32 size)
   {
     Self self;
     self._data = ::alloc<T>(size);
@@ -136,7 +315,7 @@ struct HeapBuffer
     std::fill(self._data, self._data+self._len, value);
     return self;
   }
-  static constexpr Self from(const View<const T> v)
+  static constexpr Self from(const View<const T>& v)
   {
     Self self;
     self._data = ::alloc<T>(v._len);
@@ -146,7 +325,7 @@ struct HeapBuffer
   }
   template <Iterable It_T>
     requires Sized<It_T>
-  static constexpr Self from(const It_T v)
+  static constexpr Self from(const It_T& v)
   {
     Self self;
     self._data = ::alloc<T>(v.len());
@@ -155,7 +334,7 @@ struct HeapBuffer
     return self;
   }
   template <Iterable It_T>
-  static constexpr Self from(const It_T v)
+  static constexpr Self from(const It_T& v)
   {
     Self self;
     for (const typename It_T::iterator::value_type obj : v)
@@ -172,7 +351,7 @@ struct HeapBuffer
   { return _len > _cap; }
   static constexpr Self null()
   { return {._data = nullptr, ._len = 1, ._cap = 0}; }
-  constexpr Self& push(const T element)
+  constexpr Self& push(const T& element)
   {
     _len++;
     if (_len > _cap)
@@ -184,9 +363,9 @@ struct HeapBuffer
     std::copy(&element, 1+&element, _data+_len-1);
     return *this;
   }
-  constexpr Self& extend(View<T> ext);
-  constexpr Self& insert(T element, i32 index);
-  constexpr Self& insert(View<T> element, i32 index);
+  constexpr Self& extend(const View<const T>& ext);
+  constexpr Self& insert(const T& element, i32 index);
+  constexpr Self& insert(const View<const T>& element, i32 index);
   // Return value is not destroyed !!!
   constexpr T pop();
   constexpr Self& add_cap(u32 size);
@@ -246,13 +425,15 @@ struct HeapBuffer
   template <class Self_ = Self>
     requires std::same_as<Self_, Self>
   constexpr Selection<Self> sel();
+  // defined in algo.hpp, all methods are in-place
+  _ALGO_INDEXABLE_IMPL
 };
 
 #define self (*this)
 #define Self HeapBuffer<T>
 #define L template <class T> constexpr
 
-L Self& HeapBuffer<T>::extend(View<T> v)
+L Self& HeapBuffer<T>::extend(const View<const T>& v)
 {
   cap(len() + v.len());
   if (!ok())
@@ -262,7 +443,7 @@ L Self& HeapBuffer<T>::extend(View<T> v)
   return self;
 }
 
-L Self& HeapBuffer<T>::insert(T e, i32 idx)
+L Self& HeapBuffer<T>::insert(const T& e, i32 idx)
 {
   const u32 i = idx < 0 ? len() + idx : idx;
   grow_cap();
@@ -273,7 +454,7 @@ L Self& HeapBuffer<T>::insert(T e, i32 idx)
   return self;
 }
 
-L Self& HeapBuffer<T>::insert(View<T> e, i32 idx)
+L Self& HeapBuffer<T>::insert(const View<const T>& e, i32 idx)
 {
   const u32 i = idx < 0 ? len() + idx : idx;
   cap(len() + e.len());
@@ -467,7 +648,7 @@ Opt<Self_> HeapBuffer<T>::deserialize(serde::DeserCallback cb, void *data)
     for (T& o : ret)
     {
       deser_result = T::deserialize(cb, data);
-      if (deser_result)
+      if (!deser_result)
       {
         ret.destroy();
         return Opt<Self>::null();
@@ -483,9 +664,41 @@ Opt<Self_> HeapBuffer<T>::deserialize(serde::DeserCallback cb, void *data)
   return Opt<Self>::from(ret);
 }
 
+template <class T, u32 _cap>
+template <class Self_>
+  requires std::same_as<Self_, StackBuffer<T, _cap>>
+Opt<Self_> StackBuffer<T, _cap>::deserialize(
+  serde::DeserCallback cb,
+  void *data
+) {
+  u32 temp;
+  if (cb(&temp, sizeof(temp), data))
+    return Opt<Self>::null();
+  if (temp > _cap)
+    return StackBuffer<T, _cap>::null();
+  mut ret = StackBuffer<T, _cap>::init();
+  ret.len(temp);
+  if (serde::Deserializable<T>)
+  {
+    Opt<T> deser_result;
+    for (T& o : ret)
+    {
+      deser_result = T::deserialize(cb, data);
+      if (!deser_result)
+        return StackBuffer<T, _cap>::null();
+      o = deser_result.get();
+    }
+  }
+  else if (cb(ret._data, sizeof(T)*ret._len, data))
+  {
+    return StackBuffer<T, _cap>::null();
+  }
+  return ret;
+}
+
 // formatting stuff
 template <class T>
-struct std::formatter<HeapBuffer<T>, char>
+struct std::formatter<const View<const T>, char>
 {
   template <class ParseContext>
   constexpr ParseContext::iterator parse(ParseContext& ctx)

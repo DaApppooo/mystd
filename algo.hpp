@@ -1,15 +1,17 @@
 #ifndef H_ALGO
 #define H_ALGO
-#include "list.hpp"
+#include "buffer.hpp"
+#include "_algo_macros.hpp"
 #include "traits.hpp"
+#include "array.hpp"
 #include <algorithm>
 #include <iterator>
 
 // overload of std algorithm with iterable expansion
 
-// Same as std::memmove : crashes if dst cannot contain src
+// Same as std::memmove : UB if dst cannot contain src
 template <Iterable I1, Iterable I2> // raw copy
-constexpr void copy(I1 const& dst, I2 const& src)
+constexpr void copy(I1 dst, I2 const& src)
 { std::copy(src.begin(), src.end(), dst.begin()); }
 template <Iterable I> // fill with copies
 constexpr void fill(I const& dst, typename I::iterator::value_type x)
@@ -26,13 +28,13 @@ template <Iterable It, class Func>
 constexpr void for_each(It const& it, Func const& func)
 { std::for_each(it.begin(), it.end(), func); }
 template <Iterable It, class Func>
-constexpr bool all_of(const It& it, Func const& func)
+constexpr bool all(const It& it, Func const& func)
 { return std::all_of(it.begin(), it.end(), func); }
 template <Iterable It, class Func>
-constexpr bool any_of(const It& it, Func const& func)
+constexpr bool any(const It& it, Func const& func)
 { return std::any_of(it.begin(), it.end(), func); }
 template <Iterable It, class Func>
-constexpr bool none_of(const It& it, Func const& func)
+constexpr bool none(const It& it, Func const& func)
 { return std::none_of(it.begin(), it.end(), func); }
 template <Iterable It, class Func>
 constexpr bool in(const It& it, typename It::iterator::value_type x)
@@ -96,6 +98,58 @@ constexpr It::iterator find_ordered(
   return it.end();
 }
 
+template <class T>
+_ALGO_SWAP_DECL(View, T)
+template <class T>
+_ALGO_SWAP_DECL(HeapBuffer, T)
+template <class T, u32 _cap>
+_ALGO_SWAP_DECL(StackBuffer, T, _cap)
+template <class T, u32 _cap>
+_ALGO_SWAP_DECL(Array, T, _cap)
 
+template <class T>
+_ALGO_SORT_DECL(View, T)
+template <class T>
+_ALGO_SORT_DECL(HeapBuffer, T)
+template <class T, u32 _cap>
+_ALGO_SORT_DECL(StackBuffer, T, _cap)
+template <class T, u32 _cap>
+_ALGO_SORT_DECL(Array, T, _cap)
+
+template <class T>
+_ALGO_MAX_CONST_DECL(View, T, T)
+template <class T>
+_ALGO_MAX_CONST_DECL(HeapBuffer, T, T)
+template <class T, u32 _cap>
+_ALGO_MAX_CONST_DECL(StackBuffer, T, T, _cap)
+template <class T, u32 _cap>
+_ALGO_MAX_CONST_DECL(Array, T, T, _cap)
+
+template <class T>
+_ALGO_MAX_DECL(View, T, T)
+template <class T>
+_ALGO_MAX_DECL(HeapBuffer, T, T)
+template <class T, u32 _cap>
+_ALGO_MAX_DECL(StackBuffer, T, T, _cap)
+template <class T, u32 _cap>
+_ALGO_MAX_DECL(Array, T, T, _cap)
+
+template <class T>
+_ALGO_MIN_CONST_DECL(View, T, T)
+template <class T>
+_ALGO_MIN_CONST_DECL(HeapBuffer, T, T)
+template <class T, u32 _cap>
+_ALGO_MIN_CONST_DECL(StackBuffer, T, T, _cap)
+template <class T, u32 _cap>
+_ALGO_MIN_CONST_DECL(Array, T, T, _cap)
+
+template <class T>
+_ALGO_MIN_DECL(View, T, T)
+template <class T>
+_ALGO_MIN_DECL(HeapBuffer, T, T)
+template <class T, u32 _cap>
+_ALGO_MIN_DECL(StackBuffer, T, T, _cap)
+template <class T, u32 _cap>
+_ALGO_MIN_DECL(Array, T, T, _cap)
 
 #endif

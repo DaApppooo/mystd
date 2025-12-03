@@ -1,9 +1,9 @@
 #ifndef H_ARRAY
 #define H_ARRAY
-#include "list.hpp"
 #include "serde.hpp"
 #include "traits.hpp"
 #include "types.hpp"
+#include "buffer.hpp"
 #include <algorithm>
 
 template <class T, u32 size>
@@ -12,7 +12,7 @@ struct Array
   using Self = Array<T, size>;
   using indexed_type = T;
   using index_t = i32;
-  mutable T _data[size];
+  T _data[size];
 
   static constexpr Self filled(T value)
   {
@@ -35,14 +35,14 @@ struct Array
   static constexpr Self from(const It_T v)
   {
     Self self;
-    const typename It_T::iterator it = v.begin();
+    typename It_T::iterator it = v.begin();
     for (u32 i = 0; i < size && !(it == v.end()); i++)
       self._data[i] = *(it++);
     return self;
   }
 
-  constexpr View<T> to_view() const
-  { return View<T>::range(_data, size); }
+  constexpr View<const T> to_view() const
+  { return View<const T>::range(_data, size); }
   constexpr View<T> slice(u32 length) const
   { return View<T>::range(_data, std::min(size, length)); }
   constexpr View<T> slice(u32 begin, u32 end) const;
@@ -64,6 +64,9 @@ struct Array
   serde::Result serialize(serde::SerCallback cb, void* data) const
   { return cb(_data, size*sizeof(T), data); }
   static Opt<Self> deserialize(serde::DeserCallback cb, void* data);
+
+  // defined in algo.hpp
+  _ALGO_INDEXABLE_IMPL
 };
 
 template <class T, u32 size>
@@ -93,38 +96,5 @@ Opt<Array<T, size>> Array<T, size>::deserialize(
     return serde::FAILURE;
   return buff;
 }
-
-// formatting stuff
-template <class T, u32 size>
-struct std::formatter<Array<T, size>, char>
-{
-  template <class ParseContext>
-  constexpr ParseContext::iterator parse(ParseContext& ctx)
-  {
-    return ctx.end();
-  }
-
-  template<class FmtContext>
-  constexpr FmtContext::iterator format(
-    Array<T, size> l,
-    FmtContext& ctx
-  ) const {
-    std::ostringstream out;
-    if (l.len() == 0)
-    {
-      out << "[]";
-    }
-    else
-    {
-      out << '[' << std::format("{}", l[0]);
-      for (const T& o : l.slice(1,l.len()))
-      {
-        out << ", " << std::format("{}", o);
-      }
-      out << ']';
-    }
-    return std::ranges::copy(std::move(out).str(), ctx.out()).out;
-  }
-};
 
 #endif

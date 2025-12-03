@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <cassert>
+#include <print>
 #include "types.hpp"
 
 #define let const auto
@@ -22,8 +23,10 @@ constexpr T* alloc(T* p, u32 s)
     return (T*)malloc(sizeof(T)*s);
 }
 
-
 inline void __consteval_fail() {}
+
+using std::print;
+using std::println;
 
 #ifdef FINAL
 #define need(test) [[assume(test)]]

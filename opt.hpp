@@ -1,3 +1,5 @@
+#ifndef H_OPT
+#define H_OPT
 #include <type_traits>
 #include "traits.hpp"
 
@@ -27,22 +29,18 @@ constexpr bool is_null(T obj)
     return obj.is_null();
 }
 
-template <class T>
-  requires (Optionable<T> || !Optionable<T>)
+template <class T = void>
 struct Opt
 {
   T _obj;
   enum _Status { SOME, NONE } _status;
 
-  constexpr Opt() = default;
+  constexpr Opt() : _status(NONE) {}
   constexpr Opt(const Opt<T>&) = default;
   constexpr Opt(Opt<T>&&) = default;
   constexpr Opt<T>& operator = (const Opt<T>&) = default;
   constexpr Opt<T>& operator = (Opt<T>&&) = default;
-
   constexpr Opt(T o) : _obj(o), _status(SOME) {}
-  constexpr operator T () const
-  { need(!is_null()); return _obj; }
 
   static constexpr Opt<T> null()
   { return { T(), NONE }; }
@@ -74,6 +72,18 @@ struct Opt
       if (_status == SOME)
         _obj.destroy();
   }
+};
+
+template <>
+struct Opt<void>
+{
+  struct _util_none
+  {
+    template <class T>
+    constexpr operator Opt<T> () const
+    { return Opt<T>(); }
+  };
+  static constexpr _util_none NONE;
 };
 
 template <Optionable T>
@@ -122,4 +132,5 @@ struct Opt<T>
         _obj.destroy();
   }
 };
+#endif // H_OPT
 

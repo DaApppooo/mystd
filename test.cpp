@@ -1,13 +1,20 @@
-// #include "iters.hpp"
-#include "list.hpp"
-#include "iters.hpp"
-using namespace std;
+#include "opt.hpp"
+
+Opt<i32> f(i32 x)
+{
+  if (x)
+    return x;
+  else
+    return Opt<>::NONE;
+}
 
 int main()
 {
-  let L = list[1,2,3,4,5,6];
-  L.sel();
-  L.destroy();
+  let res = f(5);
+  if (res)
+    println("result: {}", res.get());
+  else
+    println("");
   return 0;
 }
 
