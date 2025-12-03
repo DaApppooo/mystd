@@ -1,7 +1,6 @@
 #ifndef H_ITERS
 #define H_ITERS
 #include "buffer.hpp"
-#include "list.hpp"
 #include "traits.hpp"
 #include "types.hpp"
 #include <concepts>
@@ -105,10 +104,12 @@ LinkedRangeIterator<T> range(const T begin, T& end, const T step)
 { return {begin, end, step}; }
 
 
-template <Indexable Idxbl, BufferLike BufferUInt>
+template <Indexable Idxbl, class BufferUInt>
 struct BasicSelection
 {
+  static_assert(BufferLike<BufferUInt>);
   using Self = BasicSelection<Idxbl, BufferUInt>;
+  using index_t = BufferUInt::index_t;
   Idxbl& it;
   BufferUInt indicies;
 
@@ -144,6 +145,11 @@ struct BasicSelection
   static constexpr Self from(Idxbl& idxbl)
   { return { idxbl, BufferUInt::empty() }; }
 
+  // O(n) relative to It
+  constexpr Self& all()
+  {
+    for ()
+  }
   
 };
 
@@ -153,9 +159,26 @@ using Selection = BasicSelection<T, HeapBuffer<u32>>;
 template <class T>
 template <class Self_>
   requires std::same_as<Self_, View<T>>
-constexpr Selection<View<T>> View<T>::sel() const
-{ return { *this, View<u32>::empty() }; }
+constexpr Selection<const View<T>> View<T>::sel() const
+{ return { *this, HeapBuffer<u32>::empty() }; }
 
+template <class T>
+template <class Self_>
+  requires std::same_as<Self_, View<T>>
+constexpr Selection<View<T>> View<T>::sel()
+{ return { *this, HeapBuffer<u32>::empty() }; }
+
+template <class T>
+template <class Self_>
+  requires std::same_as<Self_, HeapBuffer<T>>
+constexpr Selection<const HeapBuffer<T>> HeapBuffer<T>::sel() const
+{ return { *this, HeapBuffer<u32>::empty() }; }
+
+template <class T>
+template <class Self_>
+  requires std::same_as<Self_, HeapBuffer<T>>
+constexpr Selection<HeapBuffer<T>> HeapBuffer<T>::sel()
+{ return { *this, HeapBuffer<u32>::empty() }; }
 
 
 #endif

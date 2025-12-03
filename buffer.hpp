@@ -11,12 +11,11 @@
 
 
 trait BufferLike =
-   std::random_access_iterator<T>
-&& Indexable<T>
+   std::random_access_iterator<typename T::iterator>
 && Sized<T>
 && requires { { T::empty() } -> std::same_as<T>; };
 
-template <Indexable It, BufferLike BufferUInt>
+template <Indexable It, class BufferUInt>
 struct BasicSelection;
 template <class T>
 struct HeapBuffer;
@@ -98,7 +97,10 @@ struct View
   
   template <class Self_ = Self>
     requires std::same_as<Self_, Self>
-  constexpr Selection<Self> sel() const;
+  constexpr Selection<const Self> sel() const;
+  template <class Self_ = Self>
+    requires std::same_as<Self_, Self>
+  constexpr Selection<Self> sel();
 };
 
 // A buffer allocated on the stack
@@ -240,7 +242,10 @@ struct HeapBuffer
   
   template <class Self_ = Self>
     requires std::same_as<Self_, Self>
-  constexpr Selection<Self> sel() const;
+  constexpr Selection<const Self> sel() const;
+  template <class Self_ = Self>
+    requires std::same_as<Self_, Self>
+  constexpr Selection<Self> sel();
 };
 
 #define self (*this)

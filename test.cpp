@@ -1,15 +1,12 @@
 // #include "iters.hpp"
-#include "./buffer.hpp"
 #include "list.hpp"
-#include "algo.hpp"
-#include <print>
+#include "iters.hpp"
 using namespace std;
 
 int main()
 {
   let L = list[1,2,3,4,5,6];
-  let res = find_ordered(L, 5);
-  println("{}", res - L.begin());
+  L.sel();
   L.destroy();
   return 0;
 }
