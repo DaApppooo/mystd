@@ -1,20 +1,14 @@
-#include "opt.hpp"
+#include "macros.hpp"
 
-Opt<i32> f(i32 x)
-{
-  if (x)
-    return x;
-  else
-    return Opt<>::NONE;
-}
+struct S { int x, y; };
 
 int main()
 {
-  let res = f(5);
-  if (res)
-    println("result: {}", res.get());
-  else
-    println("");
+  S s{1,2};
+  auto& [x, y] = s;
+  // tie[x, y] = s;
+  println("{}, {}", x, y);
+  
   return 0;
 }
 

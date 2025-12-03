@@ -1,6 +1,7 @@
 #ifndef H_OPT
 #define H_OPT
 #include <type_traits>
+#include "macros.hpp"
 #include "traits.hpp"
 
 template <class T>
@@ -41,6 +42,7 @@ struct Opt
   constexpr Opt<T>& operator = (const Opt<T>&) = default;
   constexpr Opt<T>& operator = (Opt<T>&&) = default;
   constexpr Opt(T o) : _obj(o), _status(SOME) {}
+  constexpr Opt(const _DefaultType&) : _status(NONE) {}
 
   static constexpr Opt<T> null()
   { return { T(), NONE }; }
@@ -83,7 +85,7 @@ struct Opt<void>
     constexpr operator Opt<T> () const
     { return Opt<T>(); }
   };
-  static constexpr _util_none NONE;
+  static constexpr _util_none NONE{};
 };
 
 template <Optionable T>
@@ -96,6 +98,7 @@ struct Opt<T>
   constexpr Opt(Opt<T>&&) = default;
   constexpr Opt<T>& operator = (const Opt<T>&) = default;
   constexpr Opt<T>& operator = (Opt<T>&&) = default;
+  constexpr Opt(const _DefaultType&) : _obj(to_null<T>()) {}
 
   constexpr Opt(T o) : _obj(o) {}
   constexpr operator T () const
