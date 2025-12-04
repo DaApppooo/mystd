@@ -1,13 +1,13 @@
+#include "allocator.hpp"
 #include "macros.hpp"
 
 struct S { int x, y; };
 
 int main()
 {
-  S s{1,2};
-  auto& [x, y] = s;
-  // tie[x, y] = s;
-  println("{}, {}", x, y);
+  using i32call = CAllocator<i32>;
+  i32* i = i32call::alloc(5);
+  i32call::free(i);
   
   return 0;
 }

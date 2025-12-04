@@ -12,11 +12,19 @@
 #define mod namespace
 #define trait template <class T> concept
 
+#ifdef __GNUG__
+// true if compiled with the gcc toolchain
+static constexpr bool __gnug__ = true;
+#else
+// false if not compiled with the gcc toolchain
+static constexpr bool __gnug__ = false;
+#endif
+
 template <class T>
-constexpr T* alloc(u32 s)
+inline constexpr T* alloc(u32 s)
 { return (T*)malloc(sizeof(T)*s); }
 template <class T>
-constexpr T* alloc(T* p, u32 s)
+inline constexpr T* alloc(T* p, u32 s)
 {
   if (p)
     return (T*)realloc(p, sizeof(T)*s);
@@ -65,7 +73,7 @@ auto _tuple_reverse(T&& t)
                       std::make_index_sequence<std::tuple_size<T>::value>());
 }
 
-// UNSTABLE UTILITY
+// UNSTABLE UTILITY (unavailable for non-gcc compilers)
 static constexpr struct {
   template <class... Ts>
   struct TiePack
@@ -81,6 +89,7 @@ static constexpr struct {
     template <class U>
       requires (sizeof(U) == sizeof(std::tuple<typename std::remove_reference<Ts>::type...>))
     constexpr TiePack& operator = (const U& other)
+      requires __gnug__ // tuple layout is implementation specific
     {
       auto into_tuple = *reinterpret_cast<
         const std::tuple<typename std::remove_reference<Ts>::type...>*

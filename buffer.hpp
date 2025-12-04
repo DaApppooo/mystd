@@ -1,5 +1,6 @@
 #ifndef H_BUFFER
 #define H_BUFFER
+#include "allocator.hpp"
 #include "traits.hpp"
 #include "types.hpp"
 #include "macros.hpp"
@@ -291,7 +292,7 @@ struct StackBuffer
   _ALGO_INDEXABLE_IMPL
 };
 
-// A buffer allocated on the stack
+// A buffer allocated on the heap
 template <class T>
 struct HeapBuffer
 {
@@ -427,6 +428,60 @@ struct HeapBuffer
   constexpr Selection<Self> sel();
   // defined in algo.hpp, all methods are in-place
   _ALGO_INDEXABLE_IMPL
+};
+
+template <class T, Allocator<T> allocator>
+struct CustomBuffer : HeapBuffer<T>
+{
+  using Self = CustomBuffer<T, allocator>;
+
+  constexpr Self& grow_cap() override
+  {
+    this->_cap += this->_cap/2+(this->_cap<2);
+    this->_data = allocator::alloc(this->_data, this->_cap);
+    return *this;
+  }
+  constexpr Self& cap(u32 new_alloc_size) override
+  {
+    if (new_alloc_size < this->_cap)
+      return *this;
+    this->_data = allocator::alloc(this->_data, new_alloc_size);
+    this->_cap = new_alloc_size;
+    return *this;
+  }
+  constexpr Self& realloc() override
+  {
+    let new_p = allocator::alloc(this->len());
+    if (!new_p)
+    {
+      destroy();
+      this->_cap = 1; // set to !ok()
+      return *this;
+    }
+    std::copy(this->_data, this->_data+this->_len, new_p);
+    this->_cap = this->len();
+    allocator::free(this->_data);
+    this->_data = new_p;
+    return *this;
+  }
+
+  constexpr void destroy() override
+  {
+    if (this->_data)
+    {
+      allocator::free(this->_data);
+      this->_data = nullptr;
+      this->_cap = this->_len = 0;
+    }
+  }
+  constexpr void destroy() const override
+  {
+    if (this->_data)
+    {
+      allocator::free(this->_data);
+      this->_data = nullptr;
+    }
+  }
 };
 
 #define self (*this)
