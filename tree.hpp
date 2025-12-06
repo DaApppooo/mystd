@@ -33,6 +33,8 @@ Templates:
 #include "array.hpp"
 #include "macros.hpp"
 #include "opt.hpp"
+#include "traits.hpp"
+#include "allocator.hpp"
 template <class T, size_t cap>
   requires (cap > 0)
 struct StackLinTree;
@@ -80,8 +82,8 @@ struct StackLinTree
     T _val;
     u32 _cc; // child count + sub-... child count + 1
     u32 _parent; // absolute index of the parent
-    inline constexpr u32 children_count() { return _cc; }
-    inline constexpr u32 len() { return children_count(); }
+    inline constexpr u32 children_count() const { return _cc - 1; }
+    inline constexpr u32 len() const { return children_count(); }
     constexpr T& get() { return _val; }
     constexpr const T& get() const { return _val; }
     constexpr T& operator * () { return _val; }
@@ -93,7 +95,7 @@ struct StackLinTree
       NodeData* p = this + 1;
       while (i > 0)
       {
-        p += p->_cc + 1; i--;
+        p += p->_cc; i--;
       };
       return *p;
     }
@@ -117,17 +119,17 @@ struct StackLinTree
 
   static constexpr Self with_root(Own<T> val) noexcept
   {
-    const NodeData temp = { val, 0, NO_PARENT };
-    return Self{StackBuffer<NodeData,cap>::from(
+    const NodeData temp = { val, 1, NO_PARENT };
+    return Self{Array<NodeData,cap>::from(
       View<const NodeData>::range(&temp, 1)
     )};
   }
 
   constexpr bool has_root() const { return _data[0]._cc != 0; }
   constexpr Self& add_root(Own<T> val)
-  { need(_data.len() == 0); _data.push({val, 0, NO_PARENT}); return *this; }
+  { need(_data.len() == 0); _data.push({val, 1, NO_PARENT}); return *this; }
   constexpr const Self& add_root(Own<T> val) const
-  { need(_data.len() == 0); _data.push({val, 0, NO_PARENT}); return *this; }
+  { need(_data.len() == 0); _data.push({val, 1, NO_PARENT}); return *this; }
 
   constexpr Opt<node_type> root() noexcept
   {
@@ -144,26 +146,349 @@ struct StackLinTree
 
   constexpr node_type add_child(node_type parent, Own<T> val)
   {
-    need(&parent >= _data.begin());
-    need(&parent < _data.end());
+    need(&parent >= _data.begin()); // implies that tree contains root
+    need(&parent < _data.begin()+_data[0]._cc);
+    need(_data[0]._cc < cap);
     parent._cc++;
     size_t pi = parent._parent;
     while (pi != NO_PARENT)
     {
       _data[pi]._cc++;
-      pi = parent._parent;
+      pi = _data[pi]._parent;
     }
     const size_t parent_index = &parent - _data.begin();
-    const size_t index = &parent - _data.begin() + parent._cc;
-    _data.insert(NodeData{val, 0, }, static_cast<i32>(index));
+    const size_t index = &parent - _data.begin() + parent._cc - 1;
+    std::copy(
+      _data.data()+index,
+      _data.data()+_data[0]._cc-1,
+      _data.data()+index+1
+    );
+    _data[index] = NodeData{val, 1, u32(parent_index)};
     return _data[index];
   }
 
+  // destroys the child and remove any grand-child
+  constexpr void rm(const_node_type node) = delete; // TODO
+  // {
+  //   need(&node >= _data.begin()); // implies that tree contains root
+  //   need(&node < _data.begin()+_data[0]._cc);
+  //   const size_t index = &node - _data.begin();
+  //   if constexpr(Destroyable<T>)
+  //   {
+  //     while (node._cc > 1)
+  //     {
+  //       u32 pi = index+1;
+  //       while (_data[pi]._cc > 1)
+  //       {
+  //         _data[pi]._cc--;
+  //         pi++;
+  //       }
+  //       _data[pi]._val.destroy();
+  //       node._cc--;
+  //       // std::copy(
+  //       //   // _data.data() + pi + 1,
+  //       //   // _data.data() + _data[0].
+  //       // );
+  //     }
+  //   }
+  // }
+
+  constexpr Opt<node_type> parent(const_node_type child)
+  {
+    need(&child >= _data.begin());
+    need(&child < _data.end());
+    if (child._parent == NO_PARENT)
+      return _;
+    return _data[child._parent];
+  }
+  constexpr Opt<const_node_type> parent(const_node_type child) const
+  {
+    need(&child >= _data.begin());
+    need(&child < _data.end());
+    if (child._parent == NO_PARENT)
+      return _;
+    return _data[child._parent];
+  }
+
+  struct _FixedLevelTraversal
+  { // traverse from left to right one single depth level
+    NodeData* _parent;
+    struct iterator
+    {
+      using Self = iterator;
+      using difference_type = std::ptrdiff_t;
+      using value_type = T;
+      NodeData* p;
+      constexpr Self operator ++ () { p += p->_cc; return *this; }
+      constexpr bool operator == (const Self other) const
+      { return p == other.p; }
+      constexpr T& operator * () { return p->_val; }
+      constexpr const T& operator * () const { return p->_val; }
+      constexpr T* operator -> () { return p->_val; }
+      constexpr const T* operator -> () const { return p->_val; }
+      constexpr std::ptrdiff_t operator - (const Self other) const
+      { return p - other.p; }
+    };
+    constexpr iterator begin() { return {_parent+1}; }
+    constexpr iterator end() { return {_parent+_parent->_cc}; }
+    constexpr const iterator begin() const { return {_parent+1}; }
+    constexpr const iterator end() const { return {_parent+_parent->_cc}; }
+    constexpr const iterator cbegin() const { return {_parent+1}; }
+    constexpr const iterator cend() const { return {_parent+_parent->_cc}; }
+  };
+  constexpr const _FixedLevelTraversal siblings(const_node_type node) const
+  { need(node._parent != NO_PARENT); return {_data.data()+node._parent}; }
+  constexpr const _FixedLevelTraversal children(const_node_type parent) const
+  { return {&parent}; }
+  constexpr _FixedLevelTraversal siblings(const_node_type node)
+  { need(node._parent != NO_PARENT); return {_data.data()+node._parent}; }
+  constexpr _FixedLevelTraversal children(const_node_type parent)
+  { return {&parent}; }
+
+  struct _DepthFirstTraversal
+  { // traverse from left to right one single depth level
+    NodeData* _parent;
+    struct iterator
+    {
+      using Self = iterator;
+      using difference_type = std::ptrdiff_t;
+      using value_type = T;
+      NodeData* p;
+      constexpr Self operator ++ () { p += p->_cc; return *this; }
+      constexpr bool operator == (const Self other) const
+      { return p == other.p; }
+      constexpr T& operator * () { return p->_val; }
+      constexpr const T& operator * () const { return p->_val; }
+      constexpr T* operator -> () { return p->_val; }
+      constexpr const T* operator -> () const { return p->_val; }
+      constexpr std::ptrdiff_t operator - (const Self other) const
+      { return p - other.p; }
+    };
+    constexpr iterator begin() { return {_parent+1}; }
+    constexpr iterator end() { return {_parent+_parent->_cc}; }
+    constexpr const iterator begin() const { return {_parent+1}; }
+    constexpr const iterator end() const { return {_parent+_parent->_cc}; }
+    constexpr const iterator cbegin() const { return {_parent+1}; }
+    constexpr const iterator cend() const { return {_parent+_parent->_cc}; }
+  };
 };
 
 template <class T, size_t n>
 struct HeapLinFixTree
 {
   
+};
+
+
+
+template <class T, size_t n>
+struct HeapNodeFixTree
+{
+  using Self = HeapNodeFixTree<T, n>;
+  struct Node;
+  using node_type = Node&;
+  using const_node_type = const Node&;
+  struct OwnedNode
+  {
+    Node* p;
+    constexpr OwnedNode(const Node* p_) : p(p_) {}
+    constexpr OwnedNode& operator = (const Node* p_) { p = p_; return *this; }
+    constexpr Node& operator * () { return *p; }
+    constexpr const Node& operator * () const { return *p; }
+    constexpr Node* operator -> () { return *p; }
+    constexpr const Node* operator -> () const { return *p; }
+    constexpr bool operator == (const Node* p_) { return p == p_; }
+    constexpr operator Node* () { return p; }
+    constexpr operator const Node* () const { return p; }
+    
+  };
+  struct Node
+  {
+    using value_type = T;
+    T _val;
+    Array<OwnedNode, n> _children;
+    inline constexpr u32 children_count() const
+    {
+      u32 acc = 0;
+      for (const Node* p : _children)
+        if (p)
+          acc++;
+      return acc;
+    }
+    inline constexpr u32 len() { return children_count(); }
+    constexpr T& get() { return _val; }
+    constexpr const T& get() const { return _val; }
+    constexpr T& operator * () { return _val; }
+    constexpr const T& operator * () const { return _val; }
+    constexpr T* operator -> () { return &_val; }
+    constexpr const T* operator -> () const { return &_val; }
+    constexpr node_type operator [] (u32 i)
+    { return *_children[i]; }
+    constexpr const_node_type operator [] (u32 i) const
+    { return *_children[i]; }
+    constexpr void destroy() const
+    {
+      for (const Node* p : _children)
+        if (p)
+          allocator::free(p);
+    }
+  };
+  
+  OwnedNode _root;
+
+  static constexpr Self rootless() noexcept
+  { return {nullptr}; }
+
+  static constexpr Self with_root(Own<T> val) noexcept
+  {
+    _root = allocator::alloc(1)
+  }
+
+  constexpr bool has_root() const { return _data[0]._cc != 0; }
+  constexpr Self& add_root(Own<T> val)
+  { need(_data.len() == 0); _data.push({val, 1, NO_PARENT}); return *this; }
+  constexpr const Self& add_root(Own<T> val) const
+  { need(_data.len() == 0); _data.push({val, 1, NO_PARENT}); return *this; }
+
+  constexpr Opt<node_type> root() noexcept
+  {
+    if (_data.len())
+      return _data[0];
+    return _;
+  }
+  constexpr Opt<const_node_type> root() const noexcept
+  {
+    if (_data.len())
+      return _data[0];
+    return _;
+  }
+
+  constexpr node_type add_child(node_type parent, Own<T> val)
+  {
+    need(&parent >= _data.begin()); // implies that tree contains root
+    need(&parent < _data.begin()+_data[0]._cc);
+    need(_data[0]._cc < cap);
+    parent._cc++;
+    size_t pi = parent._parent;
+    while (pi != NO_PARENT)
+    {
+      _data[pi]._cc++;
+      pi = _data[pi]._parent;
+    }
+    const size_t parent_index = &parent - _data.begin();
+    const size_t index = &parent - _data.begin() + parent._cc - 1;
+    std::copy(
+      _data.data()+index,
+      _data.data()+_data[0]._cc-1,
+      _data.data()+index+1
+    );
+    _data[index] = NodeData{val, 1, u32(parent_index)};
+    return _data[index];
+  }
+
+  // destroys the child and remove any grand-child
+  constexpr void rm(const_node_type node) = delete; // TODO
+  // {
+  //   need(&node >= _data.begin()); // implies that tree contains root
+  //   need(&node < _data.begin()+_data[0]._cc);
+  //   const size_t index = &node - _data.begin();
+  //   if constexpr(Destroyable<T>)
+  //   {
+  //     while (node._cc > 1)
+  //     {
+  //       u32 pi = index+1;
+  //       while (_data[pi]._cc > 1)
+  //       {
+  //         _data[pi]._cc--;
+  //         pi++;
+  //       }
+  //       _data[pi]._val.destroy();
+  //       node._cc--;
+  //       // std::copy(
+  //       //   // _data.data() + pi + 1,
+  //       //   // _data.data() + _data[0].
+  //       // );
+  //     }
+  //   }
+  // }
+
+  constexpr Opt<node_type> parent(const_node_type child)
+  {
+    need(&child >= _data.begin());
+    need(&child < _data.end());
+    if (child._parent == NO_PARENT)
+      return _;
+    return _data[child._parent];
+  }
+  constexpr Opt<const_node_type> parent(const_node_type child) const
+  {
+    need(&child >= _data.begin());
+    need(&child < _data.end());
+    if (child._parent == NO_PARENT)
+      return _;
+    return _data[child._parent];
+  }
+
+  struct _FixedLevelTraversal
+  { // traverse from left to right one single depth level
+    Node* _parent;
+    struct iterator
+    {
+      using Self = iterator;
+      using difference_type = std::ptrdiff_t;
+      using value_type = T;
+      Node* p;
+      constexpr Self operator ++ () { p += p->_cc; return *this; }
+      constexpr bool operator == (const Self other) const
+      { return p == other.p; }
+      constexpr T& operator * () { return p->_val; }
+      constexpr const T& operator * () const { return p->_val; }
+      constexpr T* operator -> () { return p->_val; }
+      constexpr const T* operator -> () const { return p->_val; }
+      constexpr std::ptrdiff_t operator - (const Self other) const
+      { return p - other.p; }
+    };
+    constexpr iterator begin() { return {_parent+1}; }
+    constexpr iterator end() { return {_parent+_parent->_cc}; }
+    constexpr const iterator begin() const { return {_parent+1}; }
+    constexpr const iterator end() const { return {_parent+_parent->_cc}; }
+    constexpr const iterator cbegin() const { return {_parent+1}; }
+    constexpr const iterator cend() const { return {_parent+_parent->_cc}; }
+  };
+  constexpr const _FixedLevelTraversal siblings(const_node_type node) const
+  { need(node._parent != NO_PARENT); return {_data.data()+node._parent}; }
+  constexpr const _FixedLevelTraversal children(const_node_type parent) const
+  { return {&parent}; }
+  constexpr _FixedLevelTraversal siblings(const_node_type node)
+  { need(node._parent != NO_PARENT); return {_data.data()+node._parent}; }
+  constexpr _FixedLevelTraversal children(const_node_type parent)
+  { return {&parent}; }
+
+  struct _DepthFirstTraversal
+  { // traverse from left to right one single depth level
+    Node* _parent;
+    struct iterator
+    {
+      using Self = iterator;
+      using difference_type = std::ptrdiff_t;
+      using value_type = T;
+      Node* p;
+      constexpr Self operator ++ () { p += p->_cc; return *this; }
+      constexpr bool operator == (const Self other) const
+      { return p == other.p; }
+      constexpr T& operator * () { return p->_val; }
+      constexpr const T& operator * () const { return p->_val; }
+      constexpr T* operator -> () { return p->_val; }
+      constexpr const T* operator -> () const { return p->_val; }
+      constexpr std::ptrdiff_t operator - (const Self other) const
+      { return p - other.p; }
+    };
+    constexpr iterator begin() { return {_parent+1}; }
+    constexpr iterator end() { return {_parent+_parent->_cc}; }
+    constexpr const iterator begin() const { return {_parent+1}; }
+    constexpr const iterator end() const { return {_parent+_parent->_cc}; }
+    constexpr const iterator cbegin() const { return {_parent+1}; }
+    constexpr const iterator cend() const { return {_parent+_parent->_cc}; }
+  };
 };
 
