@@ -1,6 +1,6 @@
 
 /*
-<AllocStorage><StorageAlgo><ChildCap>[n_way_traversable][Ordered]Tree
+<AllocStorage><StorageAlgo>[ChildCap][n_way_traversable]Tree
 
 AllocStorage:
   - Heap
@@ -11,14 +11,13 @@ StorageAlgo:
   - Node : Stores tree nodes in individual allocations.
 
 ChildCap:
+  Dyn by default when there's no overhead with this method.
   - Fix : Fixed max number of children per node.
   - Dyn : Dynamic max number of children per node.
 
 n_way_traversable:
   1 way traversable (top to bottom) by default
   - 2 : a node also references its parents
-
-Ordered: I think you know what 'Ordered' means (uses L < R).
 
 Templates:
   T : stored value
@@ -29,12 +28,16 @@ Templates:
 
 #include <concepts>
 #include <cstddef>
+#include <cstdint>
+#include "buffer.hpp"
+#include "array.hpp"
 #include "macros.hpp"
 #include "opt.hpp"
-template <class T, size_t n, size_t cap>
-struct StackLinFixTree;
+template <class T, size_t cap>
+  requires (cap > 0)
+struct StackLinTree;
 template <class T, size_t n>
-struct HeapLinFixTree; // simple growing linear array
+struct HeapLinTree; // simple growing linear array
 template <class T, size_t n>
 struct HeapNodeFixTree;
 template <class T>
@@ -62,54 +65,100 @@ struct TreeView
   NodeType* p;
 };
 
-template <class T, size_t n, size_t cap>
-struct StackLinFixTree
+template <class T, size_t cap>
+  requires (cap > 0)
+struct StackLinTree
 {
-  using Self = StackLinFixTree<T, n, cap>;
+  using Self = StackLinTree<T, cap>;
   struct NodeData;
   using node_type = NodeData&;
   using const_node_type = const NodeData&;
+  static constexpr u32 NO_PARENT = UINT32_MAX;
   struct NodeData
   {
     using value_type = T;
     T _val;
-    u32 _cc;
+    u32 _cc; // child count + sub-... child count + 1
+    u32 _parent; // absolute index of the parent
     inline constexpr u32 children_count() { return _cc; }
     inline constexpr u32 len() { return children_count(); }
-    constexpr T* operator * () { return &_val; }
-    constexpr const T* operator * () const { return &_val; }
+    constexpr T& get() { return _val; }
+    constexpr const T& get() const { return _val; }
+    constexpr T& operator * () { return _val; }
+    constexpr const T& operator * () const { return _val; }
     constexpr T* operator -> () { return &_val; }
     constexpr const T* operator -> () const { return &_val; }
     constexpr node_type operator [] (u32 i)
     {
       NodeData* p = this + 1;
-      while (i-- > 0) p = p + p->_cc + 1;
+      while (i > 0)
+      {
+        p += p->_cc + 1; i--;
+      };
       return *p;
     }
     constexpr const_node_type operator [] (u32 i) const
     {
       const NodeData* p = this + 1;
-      while (i-- > 0) p = p + p->_cc + 1;
+      while (i-- > 0) p = p + p->_cc;
       return *p;
     }
     // returns next sibling (faster than indexing)
-    constexpr node_type next() { return *(this + _cc + 1); }
-
+    constexpr node_type next() { return *(this + _cc); }
   };
   
-  NodeData _data[cap];
-  u32 len;
+  Array<NodeData, cap> _data;
 
-  static constexpr Self init()
-  { return {{}, 0}; }
-
-  constexpr Opt<node_type> root()
+  static constexpr Self rootless() noexcept
   {
-    if (len)
+    Self temp = {Array<T, cap>::init()};
+    temp._data[0]._cc = 0;
+  }
+
+  static constexpr Self with_root(Own<T> val) noexcept
+  {
+    const NodeData temp = { val, 0, NO_PARENT };
+    return Self{StackBuffer<NodeData,cap>::from(
+      View<const NodeData>::range(&temp, 1)
+    )};
+  }
+
+  constexpr bool has_root() const { return _data[0]._cc != 0; }
+  constexpr Self& add_root(Own<T> val)
+  { need(_data.len() == 0); _data.push({val, 0, NO_PARENT}); return *this; }
+  constexpr const Self& add_root(Own<T> val) const
+  { need(_data.len() == 0); _data.push({val, 0, NO_PARENT}); return *this; }
+
+  constexpr Opt<node_type> root() noexcept
+  {
+    if (_data.len())
       return _data[0];
     return _;
   }
-  
+  constexpr Opt<const_node_type> root() const noexcept
+  {
+    if (_data.len())
+      return _data[0];
+    return _;
+  }
+
+  constexpr node_type add_child(node_type parent, Own<T> val)
+  {
+    need(&parent >= _data.begin());
+    need(&parent < _data.end());
+    parent._cc++;
+    size_t pi = parent._parent;
+    while (pi != NO_PARENT)
+    {
+      _data[pi]._cc++;
+      pi = parent._parent;
+    }
+    const size_t parent_index = &parent - _data.begin();
+    const size_t index = &parent - _data.begin() + parent._cc;
+    _data.insert(NodeData{val, 0, }, static_cast<i32>(index));
+    return _data[index];
+  }
+
 };
 
 template <class T, size_t n>
@@ -117,8 +166,4 @@ struct HeapLinFixTree
 {
   
 };
-
-
-
-
 

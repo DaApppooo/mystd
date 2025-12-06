@@ -33,16 +33,33 @@ constexpr bool is_null(T obj)
 template <class T = void>
 struct Opt
 {
+  static constexpr remove_ref<T>* _ub_obj = nullptr;
   T _obj;
   enum _Status { SOME, NONE } _status;
 
-  constexpr Opt() : _status(NONE) {}
+  constexpr Opt()
+    requires (!std::is_reference_v<T>)
+  { _status = NONE; }
+  constexpr Opt()
+    // technically UB but necessary in order to support such basic feature
+    // + it's never accessed without crash
+    requires (std::is_reference_v<T>)
+    : _obj(*_ub_obj)
+  { _status = NONE; }
   constexpr Opt(const Opt<T>&) = default;
   constexpr Opt(Opt<T>&&) = default;
   constexpr Opt<T>& operator = (const Opt<T>&) = default;
   constexpr Opt<T>& operator = (Opt<T>&&) = default;
   constexpr Opt(T o) : _obj(o), _status(SOME) {}
-  constexpr Opt(const _DefaultType&) : _status(NONE) {}
+  constexpr Opt(const _DefaultType&)
+    requires (!std::is_reference_v<T>)
+  { _status = NONE; }
+  constexpr Opt(const _DefaultType&)
+    requires (std::is_reference_v<T>)
+    // technically UB but necessary in order to support such basic feature
+    // + it's never accessed without predictable crash
+    : _obj(*_ub_obj)
+  { _status = NONE; }
 
   static constexpr Opt<T> null()
   { return { T(), NONE }; }

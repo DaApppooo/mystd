@@ -1,14 +1,19 @@
-#include "allocator.hpp"
-#include "macros.hpp"
-
-struct S { int x, y; };
+#include "tree.hpp"
+template <class T, size_t cap>
+using Tree = StackLinTree<T, cap>;
 
 int main()
 {
-  using i32call = CAllocator<i32>;
-  i32* i = i32call::alloc(5);
-  i32call::free(i);
-  
+  mut t = Tree<i32, 128>::with_root(5);
+  mut& r = t.root().get();
+  t.add_child(r, 1);
+  t.add_child(r, 2);
+  for (let n : t._data)
+  {
+    println("{} {}", n._val, n._cc);
+  }
+  println("{}", *r[0]);
+
   return 0;
 }
 

@@ -149,7 +149,6 @@ struct StackBuffer
   static constexpr Self filled(T value)
   {
     Self self;
-    self._data = ::alloc<T>(_cap);
     self._len = _cap;
     std::fill(self._data, self._data+self._len, value);
     return self;
@@ -158,7 +157,6 @@ struct StackBuffer
   {
     need(v._len <= _cap);
     Self self;
-    self._data = ::alloc<T>(v._len);
     self._len = v._len;
     std::copy(v.begin(), v.end(), self._data);
     return self;
@@ -168,7 +166,6 @@ struct StackBuffer
   static constexpr Self from(const It_T v)
   {
     Self self;
-    self._data = ::alloc<T>(v.len());
     self._len = v.len();
     std::copy(v.begin(), v.end(), self._data);
     return self;
@@ -250,7 +247,9 @@ struct StackBuffer
     std::copy(_data+end, _data+_len, _data+begin);
     return *this;
   }
-  constexpr View<T> to_view() const
+  constexpr View<const T> to_view() const
+  { return View<const T>::range(_data, _len); }
+  constexpr View<T> to_view()
   { return View<T>::range(_data, _len); }
   constexpr Self& clear()
   { _len = 0; return *this; }
@@ -258,7 +257,14 @@ struct StackBuffer
   { return View<T>::range(_data, length); }
   constexpr View<T> slice(u32 begin, u32 end) const
   { return View<T>::from(_data+begin).to(_data+end); }
-  constexpr T& operator[](const i32 index) const
+  constexpr const T& operator[](const i32 index) const
+  {
+    const u32 i = index < 0 ? _len+index : index;
+    need(i < _len);
+    need(i >= 0);
+    return _data[index];
+  }
+  constexpr T& operator[](const i32 index)
   {
     const u32 i = index < 0 ? _len+index : index;
     need(i < _len);
@@ -269,9 +275,13 @@ struct StackBuffer
   { return _data[_len-1]; }
   constexpr T& first() const
   { return _data[0]; }
-  constexpr T* begin() const
+  constexpr const T* begin() const
   { return to_view().begin(); }
-  constexpr T* end() const
+  constexpr const T* end() const
+  { return to_view().end(); }
+  constexpr T* begin()
+  { return to_view().begin(); }
+  constexpr T* end()
   { return to_view().end(); }
 
   constexpr T* data() const { return _data; }
