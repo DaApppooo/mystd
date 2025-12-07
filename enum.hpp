@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <cassert>
 #include "macros.hpp"
-#include "opt.hpp"
+#include "traits.hpp"
 
 namespace _enum_utils
 {
@@ -33,6 +33,12 @@ struct is_present {
     static constexpr bool value {(std::is_same_v<What, Args> || ...)};
 };
 
+template <class... Callables>
+struct CallableSet : Callables...
+{
+  using Callables::operator () ...;
+};
+
 namespace detail {
 
 template<std::size_t I, typename R, typename F>
@@ -40,6 +46,7 @@ inline constexpr R with_integral_constant(F f)
 {
   return static_cast<F>(f)(std::integral_constant<std::size_t, I>{});
 }
+
 
 } // namespace detail
 
@@ -54,6 +61,17 @@ inline constexpr R with_n(int n, F &&f)
   return invoke_array.at(n)(std::forward<F>(f));
 }
 }
+
+template <class OrderedCallableInst, class R, class... T>
+consteval bool match_callables_const()
+{
+  return (Callable<OrderedCallableInst, R, const T&> && ...);
+};
+template <class OrderedCallableInst, class R, class... T>
+consteval bool match_callables()
+{
+  return (Callable<OrderedCallableInst, R, T&> && ...);
+};
 
 
 template <class... T>
@@ -135,11 +153,15 @@ struct alignas(std::max({4UL, alignof(T)...})) Enum
     });
   }
 
-  template <class R>
-    requires (!std::is_same_v<R, void>)
-  constexpr R match(std::function<R(const T&)>... funcs) const
+  template <class R, class... Funcs>
+    requires (
+       !std::is_same_v<R, void>
+  && match_callables_const<_enum_utils::CallableSet<Funcs...>, R, T...>()
+    )
+  constexpr R fetch(Funcs... funcs) const
   {
-    const auto t = std::tuple(funcs...);
+    const auto b = _enum_utils::CallableSet<Funcs...>{funcs...};
+    const auto t = std::tuple([&b](const T& _o){return b(_o);}...);
     const uint32_t idx = type;
     const char* data = _data;
     R ret;
@@ -148,11 +170,15 @@ struct alignas(std::max({4UL, alignof(T)...})) Enum
     });
     return ret;
   }
-  template <class R>
-    requires (!std::is_same_v<R, void>)
-  constexpr R match(std::function<R(T&)>... funcs)
+  template <class R, class... Funcs>
+    requires (
+       !std::is_same_v<R, void>
+  && match_callables<_enum_utils::CallableSet<Funcs...>, R, T...>()
+    )
+  constexpr R fetch(Funcs... funcs)
   {
-    const auto t = std::tuple(funcs...);
+    const auto b = _enum_utils::CallableSet<Funcs...>{funcs...};
+    const auto t = std::tuple([&b](T& _o){return b(_o);}...);
     const uint32_t idx = type;
     const char* data = _data;
     R ret;
@@ -161,34 +187,32 @@ struct alignas(std::max({4UL, alignof(T)...})) Enum
     });
     return ret;
   }
-  constexpr void match(std::function<void(const T&)>... funcs) const
+  template <class... Funcs>
+    requires
+      (match_callables_const<_enum_utils::CallableSet<Funcs...>, void, T...>())
+  constexpr void match(Funcs... funcs) const
   {
-    const auto t = std::tuple(funcs...);
+    const auto b = _enum_utils::CallableSet<Funcs...>{funcs...};
+    const auto t = std::tuple([&b](const T& _o){b(_o);}...);
     const uint32_t idx = type;
     const char* data = _data;
     _enum_utils::with_n<_OBJ_COUNT>(idx, [&t, &data](auto i) {
       std::get<i>(t)(*(NthType<i>*)data);
     });
   }
-  constexpr void match(std::function<void(T&)>... funcs)
+  template <class... Funcs>
+    requires 
+      (match_callables<_enum_utils::CallableSet<Funcs...>, void, T...>())
+  constexpr void match(Funcs... funcs)
   {
-    const auto t = std::tuple(funcs...);
+    const auto b = _enum_utils::CallableSet<Funcs...>{funcs...};
+    const auto t = std::tuple([&b](T& _o){b(_o);}...);
     const uint32_t idx = type;
     const char* data = _data;
     _enum_utils::with_n<_OBJ_COUNT>(idx, [&t, &data](auto i) {
       std::get<i>(t)(*(NthType<i>*)data);
     });
   }
-
-  template <class R>
-    requires std::is_same_v<R, void>
-  constexpr void match(std::function<void(const T&)>... funcs) const
-  { match(funcs...); }
-
-  template <class R>
-    requires std::is_same_v<R, void>
-  constexpr void match(std::function<void(T&)>... funcs)
-  { match(funcs...); }
 
   template <class U>
     requires (_enum_utils::is_present<U, T...>::value)

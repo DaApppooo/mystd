@@ -1,28 +1,28 @@
-#include "tree.hpp"
-template <class T, size_t cap>
-using Tree = StackLinTree<T, cap>;
+#include "enum.hpp"
+
+struct Asteroid
+{
+  int x, y;
+};
+
+struct Spaceship
+{
+  int x, y;
+  int id;
+};
+
+using SpaceObject = Enum<Asteroid, Spaceship>;
 
 int main()
 {
-  mut t = Tree<i32, 128>::with_root(5);
-  mut& r = t.root().get();
-  t.add_child(r, 1);
-  mut& c2 = t.add_child(r, 2);
-  t.add_child(c2, 20);
-  for (let v : t.siblings(c2))
-  {
-    println("A sibling of c2 contains: {}", v);
-  }
-  println("{}", *r[0]);
-  println("{}", t.parent(c2).get().get());
-
+  SpaceObject obj = Spaceship{1, 2, 3};
+  int x = obj.fetch<int>(
+    [](const Spaceship& a) { return a.x; },
+    [](const Asteroid& a) { return a.x; }
+  );
+  println("{}", x);
   return 0;
 }
 
-/*
-
-0
-
-*/
 
 

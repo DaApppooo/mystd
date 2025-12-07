@@ -140,4 +140,10 @@ trait Iterable =
   { i.end() } -> std::same_as<typename T::iterator>;
 };
 
+template <class T, class Ret, class... Args>
+concept Callable = requires (T a, Args... args)
+{
+  { a(args...) } -> std::same_as<Ret>;
+};
+
 #endif
