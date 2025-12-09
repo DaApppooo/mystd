@@ -1,27 +1,15 @@
-#include "enum.hpp"
+#include "allocator.hpp"
 
-struct Asteroid
-{
-  int x, y;
-};
 
-struct Spaceship
-{
-  int x, y;
-  int id;
-};
+struct Big { int x[1024]; };
 
-using SpaceObject = Enum<Asteroid, Spaceship>;
+// void push(Own<Big>);
+void push(const Own<Big>* p);
+void push(Own<Big>&&);
 
 int main()
 {
-  SpaceObject obj = Spaceship{1, 2, 3};
-  int x = obj.fetch<int>(
-    [](const Spaceship& a) { return a.x; },
-    [](const Asteroid& a) { return a.x; }
-  );
-  println("{}", x);
-  return 0;
+  push(&Big{1,2,3});
 }
 
 

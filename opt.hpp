@@ -14,17 +14,17 @@ concept Optionable =
 };
 
 template <Optionable T>
-constexpr T to_null()
+macro T to_null()
 {
-  if constexpr(std::is_pointer_v<T>)
+  if macro(std::is_pointer_v<T>)
     return nullptr;
   else
     return T::null();
 }
 template <Optionable T>
-constexpr bool is_null(T obj)
+macro bool is_null(T obj)
 {
-  if constexpr(std::is_pointer_v<T>)
+  if macro(std::is_pointer_v<T>)
     return obj == nullptr;
   else
     return obj.is_null();
@@ -33,61 +33,61 @@ constexpr bool is_null(T obj)
 template <class T = void>
 struct Opt
 {
-  static constexpr remove_ref<T>* _ub_obj = nullptr;
+  static macro remove_ref<T>* _ub_obj = nullptr;
   T _obj;
   enum _Status { SOME, NONE } _status;
 
-  constexpr Opt()
+  macro Opt()
     requires (!std::is_reference_v<T>)
   { _status = NONE; }
-  constexpr Opt()
+  macro Opt()
     // technically UB but necessary in order to support such basic feature
     // + it's never accessed without crash
     requires (std::is_reference_v<T>)
     : _obj(*_ub_obj)
   { _status = NONE; }
-  constexpr Opt(const Opt<T>&) = default;
-  constexpr Opt(Opt<T>&&) = default;
-  constexpr Opt<T>& operator = (const Opt<T>&) = default;
-  constexpr Opt<T>& operator = (Opt<T>&&) = default;
-  constexpr Opt(T o) : _obj(o), _status(SOME) {}
-  constexpr Opt(const _DefaultType&)
+  macro Opt(const Opt<T>&) = default;
+  macro Opt(Opt<T>&&) = default;
+  macro Opt<T>& operator = (const Opt<T>&) = default;
+  macro Opt<T>& operator = (Opt<T>&&) = default;
+  macro Opt(T o) : _obj(o), _status(SOME) {}
+  macro Opt(const _DefaultType&)
     requires (!std::is_reference_v<T>)
   { _status = NONE; }
-  constexpr Opt(const _DefaultType&)
+  macro Opt(const _DefaultType&)
     requires (std::is_reference_v<T>)
     // technically UB but necessary in order to support such basic feature
     // + it's never accessed without predictable crash
     : _obj(*_ub_obj)
   { _status = NONE; }
 
-  static constexpr Opt<T> null()
+  static macro Opt<T> null()
   { return { T(), NONE }; }
 
-  static constexpr Opt<T> from(T obj)
+  static macro Opt<T> from(T obj)
   { return { obj, SOME }; }
 
-  constexpr bool is_null() const
+  macro bool is_null() const
   { return _status == NONE; }
 
-  constexpr T& get()
+  macro T& get()
   {
     need(_status == SOME);
     return _obj;
   }
 
-  constexpr const T& get() const
+  macro const T& get() const
   {
     need(_status == SOME);
     return _obj;
   }
 
-  constexpr operator bool () const
+  macro operator bool () const
   { return !is_null(); }
 
-  constexpr void destroy()
+  macro void destroy()
   {
-    if constexpr(Destroyable<T>)
+    if macro(Destroyable<T>)
       if (_status == SOME)
         _obj.destroy();
   }
@@ -99,10 +99,10 @@ struct Opt<void>
   struct _util_none
   {
     template <class T>
-    constexpr operator Opt<T> () const
+    macro operator Opt<T> () const
     { return Opt<T>(); }
   };
-  static constexpr _util_none NONE{};
+  static macro _util_none NONE{};
 };
 
 template <Optionable T>
@@ -110,44 +110,44 @@ struct Opt<T>
 {
   T _obj;
 
-  constexpr Opt() = default;
-  constexpr Opt(const Opt<T>&) = default;
-  constexpr Opt(Opt<T>&&) = default;
-  constexpr Opt<T>& operator = (const Opt<T>&) = default;
-  constexpr Opt<T>& operator = (Opt<T>&&) = default;
-  constexpr Opt(const _DefaultType&) : _obj(to_null<T>()) {}
+  macro Opt() = default;
+  macro Opt(const Opt<T>&) = default;
+  macro Opt(Opt<T>&&) = default;
+  macro Opt<T>& operator = (const Opt<T>&) = default;
+  macro Opt<T>& operator = (Opt<T>&&) = default;
+  macro Opt(const _DefaultType&) : _obj(to_null<T>()) {}
 
-  constexpr Opt(T o) : _obj(o) {}
-  constexpr operator T () const
+  macro Opt(T o) : _obj(o) {}
+  macro operator T () const
   { need(!is_null()); return _obj; }
 
-  static constexpr Opt<T> null()
+  static macro Opt<T> null()
   { return {to_null<T>()}; }
 
-  static constexpr Opt<T> from(T obj)
+  static macro Opt<T> from(T obj)
   { return {obj}; }
 
-  constexpr bool is_null() const
+  macro bool is_null() const
   { return ::is_null(_obj); }
 
-  constexpr T& get()
+  macro T& get()
   {
     need(!is_null());
     return _obj;
   }
 
-  constexpr const T& get() const
+  macro const T& get() const
   {
     need(!is_null());
     return _obj;
   }
 
-  constexpr operator bool () const
+  macro operator bool () const
   { return !is_null(); }
 
-  constexpr void destroy()
+  macro void destroy()
   {
-    if constexpr(Destroyable<T>)
+    if macro(Destroyable<T>)
       if (!is_null())
         _obj.destroy();
   }

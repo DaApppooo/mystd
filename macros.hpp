@@ -11,20 +11,49 @@
 #define mut auto
 #define mod namespace
 #define trait template <class T> concept
+#define macro constexpr
 
 #ifdef __GNUG__
 // true if compiled with the gcc toolchain
-static constexpr bool __gnug__ = true;
+static macro bool __gnug__ = true;
 #else
 // false if not compiled with the gcc toolchain
-static constexpr bool __gnug__ = false;
+static macro bool __gnug__ = false;
 #endif
 
+// allows you to get a pointer to a usually big prvalue.
 template <class T>
-inline constexpr T* alloc(u32 s)
+  requires (sizeof(T) > 8)
+macro const T* operator & (const T&& prval)
+{ return &prval; }
+
+// Choose the optimal argument type based on the size of the parameter
+// and compiler options (todo) - and should in theory change based
+// on the usage of the object within the function.
+template <class T>
+struct fit;
+
+template <class T>
+  requires (sizeof(T) > 8)
+struct fit<T>
+{
+  T* _p;
+  // todo
+};
+
+template <class T>
+  requires (sizeof(T) <= 8)
+struct fit<T>
+{
+  T _p;
+  // todo
+};
+
+template <class T>
+inline macro T* alloc(u32 s)
 { return (T*)malloc(sizeof(T)*s); }
 template <class T>
-inline constexpr T* alloc(T* p, u32 s)
+inline macro T* alloc(T* p, u32 s)
 {
   if (p)
     return (T*)realloc(p, sizeof(T)*s);
@@ -37,18 +66,18 @@ inline void __consteval_fail() {}
 using std::print;
 using std::println;
 
-static constexpr struct _DefaultType
+static macro struct _DefaultType
 {
   using Self = _DefaultType;
-  constexpr _DefaultType() = default;
-  constexpr _DefaultType(const _DefaultType&) = default;
-  constexpr _DefaultType(_DefaultType&&) = default;
-  constexpr Self& operator = (const _DefaultType&) = default;
-  constexpr Self& operator = (_DefaultType&&) = default;
+  macro _DefaultType() = default;
+  macro _DefaultType(const _DefaultType&) = default;
+  macro _DefaultType(_DefaultType&&) = default;
+  macro Self& operator = (const _DefaultType&) = default;
+  macro Self& operator = (_DefaultType&&) = default;
   template <class T>
-  constexpr _DefaultType(const T&) {}
+  macro _DefaultType(const T&) {}
   template <class T>
-  constexpr const _DefaultType& operator = (const T&) const { return *this; }
+  macro const _DefaultType& operator = (const T&) const { return *this; }
 } _;
 
 #ifdef FINAL
@@ -74,21 +103,21 @@ auto _tuple_reverse(T&& t)
 }
 
 // UNSTABLE UTILITY (unavailable for non-gcc compilers)
-static constexpr struct {
+static macro struct {
   template <class... Ts>
   struct TiePack
   {
     std::tuple<Ts...> _pack;
-    constexpr TiePack() = default;
-    constexpr TiePack(const TiePack&) = default;
-    constexpr TiePack(TiePack&&) = default;
-    constexpr TiePack(Ts... args)
+    macro TiePack() = default;
+    macro TiePack(const TiePack&) = default;
+    macro TiePack(TiePack&&) = default;
+    macro TiePack(Ts... args)
       : _pack(args...) {}
-    constexpr TiePack& operator = (const TiePack&) = default;
-    constexpr TiePack& operator = (TiePack&&) = default;
+    macro TiePack& operator = (const TiePack&) = default;
+    macro TiePack& operator = (TiePack&&) = default;
     template <class U>
       requires (sizeof(U) == sizeof(std::tuple<typename std::remove_reference<Ts>::type...>))
-    constexpr TiePack& operator = (const U& other)
+    macro TiePack& operator = (const U& other)
       requires __gnug__ // tuple layout is implementation specific
     {
       auto into_tuple = *reinterpret_cast<
@@ -100,7 +129,7 @@ static constexpr struct {
     }
   };
   template <class... Ts>
-  constexpr TiePack<Ts&...> operator [] (Ts&... args) const
+  macro TiePack<Ts&...> operator [] (Ts&... args) const
   { return TiePack<Ts&...>(args...); }
 } tie;
 
