@@ -37,64 +37,64 @@ struct View
   using index_t = i32;
   T* _begin;
   u32 _len;
-  constexpr View() = default;
-  constexpr View(const View<T>&) = default;
-  constexpr View(View<T>&&) = default;
-  constexpr Self& operator = (const Self&) = default;
-  constexpr View(T* p, u32 l) : _begin(p), _len(l) {}
-  constexpr View(T* p) : _begin(p) {}
+  macro View() = default;
+  macro View(const View<T>&) = default;
+  macro View(View<T>&&) = default;
+  macro Self& operator = (const Self&) = default;
+  macro View(T* p, u32 l) : _begin(p), _len(l) {}
+  macro View(T* p) : _begin(p) {}
   template <class It>
     requires Sized<T> && std::random_access_iterator<typename It::iterator>
-  constexpr View(const It& it)
+  macro View(const It& it)
     : _begin(&*(it.begin())), _len(it.len()) {}
 
   template <class U>
-  static constexpr View<T> wrap(U& u)
+  static macro View<T> wrap(U& u)
   { return {static_cast<T*>(&u), 1}; }
-  static constexpr View<T> range(T* start, u32 len)
+  static macro View<T> range(T* start, u32 len)
   { return {start, len}; }
-  static constexpr View<T> cstr(T* start) = delete;
-  static constexpr View<T> from(T* start)
+  static macro View<T> cstr(T* start) = delete;
+  static macro View<T> from(T* start)
   { return {start, 0U}; }
   View<T> to(T* end) const
   { return {_begin, u32(end-_begin)}; }
-  static constexpr View<T> empty()
+  static macro View<T> empty()
   { return {nullptr, 0U}; }
-  static constexpr View<T> null()
+  static macro View<T> null()
   { return empty(); }
-  constexpr View<typename std::remove_const<T>::type> to_mut() const
+  macro View<typename std::remove_const<T>::type> to_mut() const
   { return { (typename std::remove_const<T>::type*)_begin, _len }; }
-  constexpr View<const T> to_const() const
+  macro View<const T> to_const() const
   { return { (const T*)_begin, _len }; }
   template <class U>
-  constexpr View<U> as() const
+  macro View<U> as() const
   { return { static_cast<U*>(_begin), _len*sizeof(T)/sizeof(U) }; }  
-  constexpr bool is_null() const
+  macro bool is_null() const
   { return !_begin; }
-  constexpr T* begin()
+  macro T* begin()
   { return _begin; }
-  constexpr T* end()
+  macro T* end()
   { return _begin+_len; }
-  constexpr const T* begin() const
+  macro const T* begin() const
   { return _begin; }
-  constexpr const T* end() const
+  macro const T* end() const
   { return _begin+_len; }
-  constexpr T& first()
+  macro T& first()
   { need(_len > 0); return _begin[0]; }
-  constexpr T& last()
+  macro T& last()
   { need(_len > 0); return _begin[_len-1]; }
-  constexpr T& first() const
+  macro T& first() const
   { need(_len > 0); return _begin[0]; }
-  constexpr T& last() const
+  macro T& last() const
   { need(_len > 0); return _begin[_len-1]; }
-  constexpr u32 len() const { return _len; }
-  constexpr T& operator * () const
+  macro u32 len() const { return _len; }
+  macro T& operator * () const
   { return *_begin; }
-  constexpr T& operator * ()
+  macro T& operator * ()
   { return *_begin; }
-  constexpr View<T> operator ++ ()
+  macro View<T> operator ++ ()
   { _begin++; _len--; return *this; }
-  constexpr bool operator == (const View<T> o) const
+  macro bool operator == (const View<T> o) const
   {
     if (o.len() != len())
       return false;
@@ -104,7 +104,7 @@ struct View
     { if (!(*a == *b)) return false; ++a; ++b; }
     return true;
   }
-  constexpr T& operator[](i32 index) const
+  macro T& operator[](i32 index) const
   {
     if (index < 0)
     {
@@ -112,9 +112,9 @@ struct View
     }
     return _begin[index];
   }
-  constexpr View<T> operator[](u32 start, u32 end) const
+  macro View<T> operator[](u32 start, u32 end) const
   { return View<T>::range(_begin+start, end-start); }
-  constexpr View<T>& shorten(u32 diff)
+  macro View<T>& shorten(u32 diff)
   { _len -= diff; return *this; }
   constexpr HeapBuffer<View<T>> split(const T& item) const;
   constexpr HeapBuffer<T> alloc() const;
@@ -129,17 +129,17 @@ struct View
   
   template <class Self_ = Self>
     requires std::same_as<Self_, Self>
-  constexpr Selection<const Self> sel() const;
+  macro Selection<const Self> sel() const;
   template <class Self_ = Self>
     requires std::same_as<Self_, Self>
-  constexpr Selection<Self> sel();
+  macro Selection<Self> sel();
 };
 
 template <>
-constexpr View<const char> View<const char>::cstr(const char* s)
+macro View<const char> View<const char>::cstr(const char* s)
 { return View<const char>::range(s, strlen(s)); }
 template <>
-constexpr View<char> View<char>::cstr(char* s)
+macro View<char> View<char>::cstr(char* s)
 { return View<char>::range(s, strlen(s)); }
 
 // A buffer allocated on the stack
@@ -152,16 +152,16 @@ struct StackBuffer
   using index_t = i32;
   T _data[_cap];
   u32 _len;
-  static constexpr Self init()
+  static macro Self init()
   { return {{}, 0}; }
-  static constexpr Self filled(T value)
+  static macro Self filled(T value)
   {
     Self self;
     self._len = _cap;
     std::fill(self._data, self._data+self._len, value);
     return self;
   }
-  static constexpr Self from(const View<const T> v)
+  static macro Self from(const View<const T> v)
   {
     need(v._len <= _cap);
     Self self;
@@ -171,7 +171,7 @@ struct StackBuffer
   }
   template <Iterable It_T>
     requires Sized<It_T>
-  static constexpr Self from(const It_T v)
+  static macro Self from(const It_T v)
   {
     Self self;
     self._len = v.len();
@@ -179,7 +179,7 @@ struct StackBuffer
     return self;
   }
   template <Iterable It_T>
-  static constexpr Self from(const It_T v)
+  static macro Self from(const It_T v)
   {
     Self self;
     for (const typename It_T::iterator::value_type obj : v)
@@ -188,32 +188,32 @@ struct StackBuffer
     }
     return self;
   }
-  constexpr bool is_null() const
+  macro bool is_null() const
   { return _len > _cap; }
-  static constexpr Self null()
+  static macro Self null()
   { return Self{{}, _cap+1}; }
   
-  constexpr Self& push(const T& obj)
+  macro Self& push(const T& obj)
   {
     need(_len < _cap);
     std::copy(&obj, 1+&obj, _data+(_len++));
     return *this;
   }
-  constexpr bool pushable() const
+  macro bool pushable() const
   { return _len < _cap; }
 
   // Return value isn't destroyed
-  constexpr T& pop()
+  macro T& pop()
   { need(_len > 0); return _data[_len--]; }
 
-  constexpr Self& extend(const View<const T>& ext)
+  macro Self& extend(const View<const T>& ext)
   {
     need(_len + ext._len <= _cap);
     std::copy(ext.begin(), ext.end(), _data+_len);
     _len += ext._len;
     return *this;
   }
-  constexpr Self& insert(const T& element, i32 index)
+  macro Self& insert(const T& element, i32 index)
   {
     const u32 i = std::clamp(index < 0 ? _len+index : index, 0U, _len);
     need(_len < _cap);
@@ -222,7 +222,7 @@ struct StackBuffer
     ++_len;
     return *this;
   }
-  constexpr Self& insert(const View<const T>& v, i32 index)
+  macro Self& insert(const View<const T>& v, i32 index)
   {
     const u32 i = std::clamp(index < 0 ? _len+index : index, 0U, _len);
     need(_len + v._len <= _cap);
@@ -231,14 +231,14 @@ struct StackBuffer
     _len += v._len;
     return *this;
   }
-  constexpr Own<Self> copy() const
+  macro Own<Self> copy() const
   {
     Self r;
     std::copy(_data, _data+_len, r._data);
     r._len = _len;
     return r;
   }
-  constexpr Self& rm(i32 index)
+  macro Self& rm(i32 index)
   {
     const u32 i = index < 0 ? _len+index : index;
     need(i < _len);
@@ -247,7 +247,7 @@ struct StackBuffer
     std::copy(_data+i+1, _data+_len, _data+i);
     return *this;
   }
-  constexpr Self& rm(u32 begin, u32 end)
+  macro Self& rm(u32 begin, u32 end)
   {
     need(end <= _len);
     need(begin <= end);
@@ -255,50 +255,50 @@ struct StackBuffer
     std::copy(_data+end, _data+_len, _data+begin);
     return *this;
   }
-  constexpr View<const T> to_view() const
+  macro View<const T> to_view() const
   { return View<const T>::range(_data, _len); }
-  constexpr View<T> to_view()
+  macro View<T> to_view()
   { return View<T>::range(_data, _len); }
-  constexpr Self& clear()
+  macro Self& clear()
   { _len = 0; return *this; }
-  constexpr View<T> slice(u32 length) const
+  macro View<T> slice(u32 length) const
   { return View<T>::range(_data, length); }
-  constexpr View<T> slice(u32 begin, u32 end) const
+  macro View<T> slice(u32 begin, u32 end) const
   { return View<T>::from(_data+begin).to(_data+end); }
-  constexpr const T& operator[](const i32 index) const
+  macro const T& operator[](const i32 index) const
   {
     const u32 i = index < 0 ? _len+index : index;
     need(i < _len);
     need(i >= 0);
     return _data[index];
   }
-  constexpr T& operator[](const i32 index)
+  macro T& operator[](const i32 index)
   {
     const u32 i = index < 0 ? _len+index : index;
     need(i < _len);
     need(i >= 0);
     return _data[index];
   }
-  constexpr T& last() const
+  macro T& last() const
   { return _data[_len-1]; }
-  constexpr T& first() const
+  macro T& first() const
   { return _data[0]; }
-  constexpr const T* begin() const
+  macro const T* begin() const
   { return to_view().begin(); }
-  constexpr const T* end() const
+  macro const T* end() const
   { return to_view().end(); }
-  constexpr T* begin()
+  macro T* begin()
   { return to_view().begin(); }
-  constexpr T* end()
+  macro T* end()
   { return to_view().end(); }
 
-  constexpr T* data() const { return _data; }
-  constexpr u32 len() const { return _len; }
-  constexpr u32 cap() const { return _cap; }
-  constexpr Self& len(u32 new_len)
+  macro T* data() const { return _data; }
+  macro u32 len() const { return _len; }
+  macro u32 cap() const { return _cap; }
+  macro Self& len(u32 new_len)
   { need(new_len < _cap); _len = new_len; return *this; }
 
-  constexpr bool is_empty() const
+  macro bool is_empty() const
   { return _len == 0; }
   inline serde::Result serialize(serde::SerCallback cb, void* data) const
   { return to_view().serialize(cb, data); }
@@ -321,12 +321,12 @@ struct HeapBuffer
   mutable T* _data;
   u32 _len;
   u32 _cap;
-  static constexpr Self empty()
+  static macro Self empty()
   { return {nullptr, 0, 0}; }
   // unintialized buffer
-  static constexpr Self alloc(u32 cap)
+  static macro Self alloc(u32 cap)
   { return {::alloc<T>(cap), 0, cap}; }
-  static constexpr Self filled(const T& value, u32 size)
+  static macro Self filled(const T& value, u32 size)
   {
     Self self;
     self._data = ::alloc<T>(size);
@@ -334,7 +334,7 @@ struct HeapBuffer
     std::fill(self._data, self._data+self._len, value);
     return self;
   }
-  static constexpr Self from(const View<const T>& v)
+  static macro Self from(const View<const T>& v)
   {
     Self self;
     self._data = ::alloc<T>(v._len);
@@ -344,7 +344,7 @@ struct HeapBuffer
   }
   template <Iterable It_T>
     requires Sized<It_T>
-  static constexpr Self from(const It_T& v)
+  static macro Self from(const It_T& v)
   {
     Self self;
     self._data = ::alloc<T>(v.len());
@@ -353,7 +353,7 @@ struct HeapBuffer
     return self;
   }
   template <Iterable It_T>
-  static constexpr Self from(const It_T& v)
+  static macro Self from(const It_T& v)
   {
     Self self;
     for (const typename It_T::iterator::value_type obj : v)
@@ -362,15 +362,15 @@ struct HeapBuffer
   }
 
   // check if List state is as expected (eg. if allocation failed or not)
-  constexpr bool ok() const
+  macro bool ok() const
   { return _data || !_cap; }
-  constexpr bool need_ok() const
+  macro bool need_ok() const
   { need(ok()); return ok(); }
-  constexpr bool is_null() const
+  macro bool is_null() const
   { return _len > _cap; }
-  static constexpr Self null()
+  static macro Self null()
   { return {._data = nullptr, ._len = 1, ._cap = 0}; }
-  constexpr Self& push(const T& element)
+  macro Self& push(const T& element)
   {
     _len++;
     if (_len > _cap)
@@ -382,48 +382,51 @@ struct HeapBuffer
     std::copy(&element, 1+&element, _data+_len-1);
     return *this;
   }
-  constexpr Self& extend(const View<const T>& ext);
-  constexpr Self& insert(const T& element, i32 index);
-  constexpr Self& insert(const View<const T>& element, i32 index);
+  macro Self& extend(const View<const T>& ext);
+  macro Self& insert(const T& element, i32 index);
+  macro Self& insert(const View<const T>& element, i32 index);
   // Return value is not destroyed !!!
-  constexpr T pop();
-  constexpr Self& add_cap(u32 size);
-  constexpr Self& realloc();
-  constexpr void destroy();
-  constexpr void destroy() const;
-  constexpr Own<Self> copy() const;
-  constexpr Own<Self> drop();
-  constexpr Self& rm(i32 index);
-  constexpr Self& rm(u32 begin, u32 end);
-  constexpr View<T> to_view() const;
-  constexpr Self& clear();
-  constexpr View<T> slice(u32 length) const;
-  constexpr View<T> slice(u32 begin, u32 end) const;
-  constexpr T& operator[](const i32 index) const;
-  constexpr T& last() const
+  macro T pop();
+  macro Self& add_cap(u32 size);
+  macro Self& realloc();
+  macro void destroy();
+  macro void destroy() const;
+  macro Own<Self> copy() const;
+  macro Own<Self> drop();
+  macro Self& rm(i32 index);
+  macro Self& rm(u32 begin, u32 end);
+  macro View<T> to_view() const;
+  macro Self& clear();
+  macro View<T> slice(u32 length) const;
+  macro View<T> slice(u32 begin, u32 end) const;
+  macro T& operator[](const i32 index) const;
+  macro T& last() const
   { return _data[_len-1]; }
-  constexpr T& first() const
+  macro T& first() const
   { return _data[0]; }
-  constexpr T* begin() const
+  macro T* begin() const
   { return to_view().begin(); }
-  constexpr T* end() const
+  macro T* end() const
   { return to_view().end(); }
 
-  constexpr T* data() const { return _data; }
-  constexpr u32 len() const { return _len; }
-  constexpr u32 cap() const { return _cap; }
-  constexpr Self& cap(u32 new_allocated_size);
-  constexpr Self& len(u32 new_size);
-  constexpr Self& len(T fill_new_with, u32 new_size);
-  constexpr bool is_empty() const
+  macro T* data() const { return _data; }
+  macro u32 len() const { return _len; }
+  macro u32 cap() const { return _cap; }
+  macro Self& cap(u32 new_allocated_size);
+  macro Self& len(u32 new_size);
+  macro Self& len(Ref<T> fill_new_with, u32 new_size)
+    requires Copiable<T>;
+  macro Self& len(Ref<T>* fill_new_with, u32 new_size)
+    requires Copiable<T>;
+  macro bool is_empty() const
   { return _len == 0; }
-  constexpr Self& grow_cap()
+  macro Self& grow_cap()
   {
     _cap += _cap/2+(_cap<2);
     _data = ::alloc<T>(_data, _cap);
     return *this;
   }
-  constexpr Self& shrink_cap(u32 new_cap)
+  macro Self& shrink_cap(u32 new_cap)
   {
     need(new_cap <= _cap);
     _data = ::alloc<T>(_data, new_cap);
@@ -440,10 +443,10 @@ struct HeapBuffer
   
   template <class Self_ = Self>
     requires std::same_as<Self_, Self>
-  constexpr Selection<const Self> sel() const;
+  macro Selection<const Self> sel() const;
   template <class Self_ = Self>
     requires std::same_as<Self_, Self>
-  constexpr Selection<Self> sel();
+  macro Selection<Self> sel();
   // defined in algo.hpp, all methods are in-place
   _ALGO_INDEXABLE_IMPL
 };
@@ -453,13 +456,13 @@ struct CustomBuffer : HeapBuffer<T>
 {
   using Self = CustomBuffer<T, allocator>;
 
-  constexpr Self& grow_cap() override
+  macro Self& grow_cap() override
   {
     this->_cap += this->_cap/2+(this->_cap<2);
     this->_data = allocator::alloc(this->_data, this->_cap);
     return *this;
   }
-  constexpr Self& cap(u32 new_alloc_size) override
+  macro Self& cap(u32 new_alloc_size) override
   {
     if (new_alloc_size < this->_cap)
       return *this;
@@ -467,7 +470,7 @@ struct CustomBuffer : HeapBuffer<T>
     this->_cap = new_alloc_size;
     return *this;
   }
-  constexpr Self& realloc() override
+  macro Self& realloc() override
   {
     let new_p = allocator::alloc(this->len());
     if (!new_p)
@@ -483,7 +486,7 @@ struct CustomBuffer : HeapBuffer<T>
     return *this;
   }
 
-  constexpr void destroy() override
+  macro void destroy() override
   {
     if (this->_data)
     {
@@ -492,7 +495,7 @@ struct CustomBuffer : HeapBuffer<T>
       this->_cap = this->_len = 0;
     }
   }
-  constexpr void destroy() const override
+  macro void destroy() const override
   {
     if (this->_data)
     {
@@ -504,7 +507,7 @@ struct CustomBuffer : HeapBuffer<T>
 
 #define self (*this)
 #define Self HeapBuffer<T>
-#define L template <class T> constexpr
+#define L template <class T> macro
 
 L Self& HeapBuffer<T>::extend(const View<const T>& v)
 {
@@ -666,11 +669,24 @@ L Self& HeapBuffer<T>::len(u32 new_size)
   return self;
 }
 
-L Self& HeapBuffer<T>::len(T filler, u32 new_size)
+L Self& HeapBuffer<T>::len(Ref<T> filler, u32 new_size)
+  requires Copiable<T>
 {
   need(_cap >= new_size);
   if (new_size > len())
-    std::fill(end(), end()+(new_size-len()), filler);
+    for (auto& elem : View<T>::range(end(), new_size-len()))
+      elem = copy(filler);
+  _len = new_size;
+  return self;
+}
+
+L Self& HeapBuffer<T>::len(Ref<T>* filler, u32 new_size)
+  requires Copiable<T>
+{
+  need(_cap >= new_size);
+  if (new_size > len())
+    for (auto& elem : View<T>::range(end(), new_size-len()))
+      elem = copy(*filler);
   _len = new_size;
   return self;
 }
@@ -686,7 +702,7 @@ serde::Result View<T>::serialize(serde::SerCallback cb, void* data) const
     return serde::FAILURE;
   if (_begin)
   {
-    if constexpr(serde::Serializable<T>)
+    if macro(serde::Serializable<T>)
     {
       for (const T& t : *this)
       {
@@ -774,13 +790,13 @@ template <class T>
 struct std::formatter<const View<const T>, char>
 {
   template <class ParseContext>
-  constexpr ParseContext::iterator parse(ParseContext& ctx)
+  macro ParseContext::iterator parse(ParseContext& ctx)
   {
     return ctx.end();
   }
 
   template<class FmtContext>
-  constexpr FmtContext::iterator format(HeapBuffer<T> l, FmtContext& ctx) const
+  macro FmtContext::iterator format(HeapBuffer<T> l, FmtContext& ctx) const
   {
     std::ostringstream out;
     if (l.len() == 0)

@@ -20,7 +20,7 @@ template <typename A, typename B>
 struct index_of<A, B>
   : std::integral_constant<std::size_t, 0>
 {
-    constexpr operator std::size_t() const
+    macro operator std::size_t() const
     {
         return   std::is_same<A, B>{}
                ? 0
@@ -30,7 +30,7 @@ struct index_of<A, B>
 
 template<typename What, typename ... Args>
 struct is_present {
-    static constexpr bool value {(std::is_same_v<What, Args> || ...)};
+    static macro bool value {(std::is_same_v<What, Args> || ...)};
 };
 
 template <class... Callables>
@@ -42,7 +42,7 @@ struct CallableSet : Callables...
 namespace detail {
 
 template<std::size_t I, typename R, typename F>
-inline constexpr R with_integral_constant(F f)
+inline macro R with_integral_constant(F f)
 {
   return static_cast<F>(f)(std::integral_constant<std::size_t, I>{});
 }
@@ -51,9 +51,9 @@ inline constexpr R with_integral_constant(F f)
 } // namespace detail
 
 template<std::size_t N, typename R = void, typename F>
-inline constexpr R with_n(int n, F &&f)
+inline macro R with_n(int n, F &&f)
 {
-  constexpr auto invoke_array =
+  macro auto invoke_array =
     []<std::size_t...I>(std::index_sequence<I...>) {
     return std::array{ detail::with_integral_constant<I, R, F&&>... };
   }(std::make_index_sequence<N>{});
@@ -79,15 +79,15 @@ struct alignas(std::max({4UL, alignof(T)...})) Enum
 {
   using Self = Enum<T...>;
   using TypesTuple = std::tuple<T...>;
-  static constexpr size_t _OBJ_SIZE = std::max({sizeof(T)...});
-  static constexpr size_t _OBJ_COUNT = sizeof...(T);
+  static macro size_t _OBJ_SIZE = std::max({sizeof(T)...});
+  static macro size_t _OBJ_COUNT = sizeof...(T);
   uint32_t type;
   char _data[_OBJ_SIZE];
   template<int N>
   using NthType =
         typename std::tuple_element<N, TypesTuple>::type;
 
-  constexpr Enum(const Self& other)
+  macro Enum(const Self& other)
   {
     const uint32_t idx = other.type;
     const char* data = _data;
@@ -97,7 +97,7 @@ struct alignas(std::max({4UL, alignof(T)...})) Enum
       std::construct_at((NthType<i>*)data, std::move(copied));
     });
   }
-  constexpr Enum(Self&& other)
+  macro Enum(Self&& other)
   {
     const uint32_t idx = other.type;
     const char* data = _data;
@@ -108,13 +108,13 @@ struct alignas(std::max({4UL, alignof(T)...})) Enum
   }
   template <class U>
     requires (_enum_utils::is_present<U, T...>::value)
-  constexpr Enum(const U& u)
+  macro Enum(const U& u)
   {
     type = _enum_utils::index_of<U, T...>::value;
     U& dst = *(U*)_data;
     std::construct_at(&dst, std::move(u));
   }
-  constexpr Self& operator = (const Self& other)
+  macro Self& operator = (const Self& other)
   {
     const uint32_t idx = other.type;
     const char* data = _data;
@@ -125,7 +125,7 @@ struct alignas(std::max({4UL, alignof(T)...})) Enum
     });
     return *this;
   }
-  constexpr Self& operator = (Self&& other)
+  macro Self& operator = (Self&& other)
   {
     const uint32_t idx = other.type;
     const char* data = _data;
@@ -137,14 +137,14 @@ struct alignas(std::max({4UL, alignof(T)...})) Enum
   }
   template <class U>
     requires (_enum_utils::is_present<U, T...>::value)
-  constexpr Self& operator = (const U& u)
+  macro Self& operator = (const U& u)
   {
     type = _enum_utils::index_of<U, T...>::value;
     U& dst = *(U*)_data;
     dst = u;
     return *this;
   }
-  constexpr ~Enum()
+  macro ~Enum()
   {
     const uint32_t idx = type;
     const char* data = _data;
@@ -158,7 +158,7 @@ struct alignas(std::max({4UL, alignof(T)...})) Enum
        !std::is_same_v<R, void>
   && match_callables_const<_enum_utils::CallableSet<Funcs...>, R, T...>()
     )
-  constexpr R fetch(Funcs... funcs) const
+  macro R fetch(Funcs... funcs) const
   {
     const auto b = _enum_utils::CallableSet<Funcs...>{funcs...};
     const auto t = std::tuple([&b](const T& _o){return b(_o);}...);
@@ -175,7 +175,7 @@ struct alignas(std::max({4UL, alignof(T)...})) Enum
        !std::is_same_v<R, void>
   && match_callables<_enum_utils::CallableSet<Funcs...>, R, T...>()
     )
-  constexpr R fetch(Funcs... funcs)
+  macro R fetch(Funcs... funcs)
   {
     const auto b = _enum_utils::CallableSet<Funcs...>{funcs...};
     const auto t = std::tuple([&b](T& _o){return b(_o);}...);
@@ -190,7 +190,7 @@ struct alignas(std::max({4UL, alignof(T)...})) Enum
   template <class... Funcs>
     requires
       (match_callables_const<_enum_utils::CallableSet<Funcs...>, void, T...>())
-  constexpr void match(Funcs... funcs) const
+  macro void match(Funcs... funcs) const
   {
     const auto b = _enum_utils::CallableSet<Funcs...>{funcs...};
     const auto t = std::tuple([&b](const T& _o){b(_o);}...);
@@ -203,7 +203,7 @@ struct alignas(std::max({4UL, alignof(T)...})) Enum
   template <class... Funcs>
     requires 
       (match_callables<_enum_utils::CallableSet<Funcs...>, void, T...>())
-  constexpr void match(Funcs... funcs)
+  macro void match(Funcs... funcs)
   {
     const auto b = _enum_utils::CallableSet<Funcs...>{funcs...};
     const auto t = std::tuple([&b](T& _o){b(_o);}...);
@@ -216,27 +216,27 @@ struct alignas(std::max({4UL, alignof(T)...})) Enum
 
   template <class U>
     requires (_enum_utils::is_present<U, T...>::value)
-  constexpr bool is() const
+  macro bool is() const
   {
     return size_t(_enum_utils::index_of<U, T...>()) == type;
   }
   template <class U>
     requires (_enum_utils::is_present<U, T...>::value)
-  constexpr U& get() const
+  macro U& get() const
   {
-    constexpr size_t idx = _enum_utils::index_of<U, T...>();
+    macro size_t idx = _enum_utils::index_of<U, T...>();
     need(type == idx);
     return *(U*)_data;
   }
   template <class U>
     requires (_enum_utils::is_present<U, T...>::value)
-  constexpr U& get()
+  macro U& get()
   {
-    constexpr size_t idx = _enum_utils::index_of<U, T...>();
+    macro size_t idx = _enum_utils::index_of<U, T...>();
     need(type == idx);
     return *(U*)_data;
   }
-  constexpr operator size_t () const
+  macro operator size_t () const
   { return type; }
 };
 
@@ -247,17 +247,17 @@ struct alignas(std::max({4UL, alignof(Ts)...})) Enum<Empty, Ts...>
 {
   using Self = Enum<Empty, Ts...>;
   using TypesTuple = std::tuple<Empty, Ts...>;
-  static constexpr size_t _OBJ_SIZE
+  static macro size_t _OBJ_SIZE
     = std::max({sizeof(Empty), sizeof(Ts)...});
-  static constexpr size_t _OBJ_COUNT = sizeof...(Ts)+1;
+  static macro size_t _OBJ_COUNT = sizeof...(Ts)+1;
   uint32_t type;
   char _data[_OBJ_SIZE];
   template<int N>
   using NthType =
         typename std::tuple_element<N, TypesTuple>::type;
 
-  constexpr Enum() : type(0), _data{0} {}
-  constexpr Enum(const Self& other)
+  macro Enum() : type(0), _data{0} {}
+  macro Enum(const Self& other)
   {
     const uint32_t idx = other.type;
     const char* data = _data;
@@ -267,7 +267,7 @@ struct alignas(std::max({4UL, alignof(Ts)...})) Enum<Empty, Ts...>
       std::construct_at((NthType<i>*)data, std::move(copied));
     });
   }
-  constexpr Enum(Self&& other)
+  macro Enum(Self&& other)
   {
     const uint32_t idx = other.type;
     const char* data = _data;
@@ -278,13 +278,13 @@ struct alignas(std::max({4UL, alignof(Ts)...})) Enum<Empty, Ts...>
   }
   template <class U>
     requires (_enum_utils::is_present<U, Ts...>::value)
-  constexpr Enum(const U& u)
+  macro Enum(const U& u)
   {
     type = _enum_utils::index_of<U, Ts...>::value;
     U& dst = *(U*)_data;
     std::construct_at(&dst, std::move(u));
   }
-  constexpr Self& operator = (const Self& other)
+  macro Self& operator = (const Self& other)
   {
     const uint32_t idx = other.type;
     const char* data = _data;
@@ -295,7 +295,7 @@ struct alignas(std::max({4UL, alignof(Ts)...})) Enum<Empty, Ts...>
     });
     return *this;
   }
-  constexpr Self& operator = (Self&& other)
+  macro Self& operator = (Self&& other)
   {
     const uint32_t idx = other.type;
     const char* data = _data;
@@ -307,14 +307,14 @@ struct alignas(std::max({4UL, alignof(Ts)...})) Enum<Empty, Ts...>
   }
   template <class U>
     requires (_enum_utils::is_present<U, Ts...>::value)
-  constexpr Self& operator = (const U& u)
+  macro Self& operator = (const U& u)
   {
     type = _enum_utils::index_of<U, Ts...>::value+1;
     U& dst = *(U*)_data;
     dst = u;
     return *this;
   }
-  constexpr ~Enum()
+  macro ~Enum()
   {
     const uint32_t idx = type;
     const char* data = _data;
@@ -325,7 +325,7 @@ struct alignas(std::max({4UL, alignof(Ts)...})) Enum<Empty, Ts...>
 
   template <class R>
     requires (!std::is_same_v<R, void>)
-  constexpr R match(std::function<R(const Ts&)>... funcs) const
+  macro R match(std::function<R(const Ts&)>... funcs) const
   {
     const auto t = std::tuple([](const Empty&){}, funcs...);
     const uint32_t idx = type;
@@ -338,7 +338,7 @@ struct alignas(std::max({4UL, alignof(Ts)...})) Enum<Empty, Ts...>
   }
   template <class R>
     requires (!std::is_same_v<R, void>)
-  constexpr R match(std::function<R(Ts&)>... funcs)
+  macro R match(std::function<R(Ts&)>... funcs)
   {
     const auto t = std::tuple([](const Empty&){}, funcs...);
     const uint32_t idx = type;
@@ -349,7 +349,7 @@ struct alignas(std::max({4UL, alignof(Ts)...})) Enum<Empty, Ts...>
     });
     return ret;
   }
-  constexpr void match(std::function<void(const Ts&)>... funcs) const
+  macro void match(std::function<void(const Ts&)>... funcs) const
   {
     const auto t = std::tuple([](const Empty&){}, funcs...);
     const uint32_t idx = type;
@@ -358,7 +358,7 @@ struct alignas(std::max({4UL, alignof(Ts)...})) Enum<Empty, Ts...>
       std::get<i>(t)(*(NthType<i>*)data);
     });
   }
-  constexpr void match(std::function<void(Ts&)>... funcs)
+  macro void match(std::function<void(Ts&)>... funcs)
   {
     const auto t = std::tuple([](const Empty&){}, funcs...);
     const uint32_t idx = type;
@@ -370,43 +370,43 @@ struct alignas(std::max({4UL, alignof(Ts)...})) Enum<Empty, Ts...>
 
   template <class R>
     requires std::is_same_v<R, void>
-  constexpr void match(std::function<void(const Ts&)>... funcs) const
+  macro void match(std::function<void(const Ts&)>... funcs) const
   { match(funcs...); }
 
   template <class R>
     requires std::is_same_v<R, void>
-  constexpr void match(std::function<void(Ts&)>... funcs)
+  macro void match(std::function<void(Ts&)>... funcs)
   { match(funcs...); }
 
   template <class U>
     requires (_enum_utils::is_present<U, Ts...>::value)
-  constexpr bool is() const
+  macro bool is() const
   {
     return size_t(_enum_utils::index_of<U, Ts...>()) == type;
   }
   template <class U>
     requires (_enum_utils::is_present<U, Ts...>::value)
-  constexpr U& get() const
+  macro U& get() const
   {
-    constexpr size_t idx = _enum_utils::index_of<U, Ts...>();
+    macro size_t idx = _enum_utils::index_of<U, Ts...>();
     need(type == idx);
     return *(U*)_data;
   }
   template <class U>
     requires (_enum_utils::is_present<U, Ts...>::value)
-  constexpr U& get()
+  macro U& get()
   {
-    constexpr size_t idx = _enum_utils::index_of<U, Ts...>();
+    macro size_t idx = _enum_utils::index_of<U, Ts...>();
     need(type == idx);
     return *(U*)_data;
   }
 
   // full opt implementation
-  constexpr bool is_null() const { return type == 0; }
-  static constexpr Self null()
+  macro bool is_null() const { return type == 0; }
+  static macro Self null()
   { return Self(); }
 
-  constexpr operator size_t () const
+  macro operator size_t () const
   { return type; }
 };
 

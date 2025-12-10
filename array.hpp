@@ -14,7 +14,7 @@ struct Array
   using index_t = i32;
   T _data[size];
 
-  static constexpr Self filled(T value)
+  static macro Self filled(T value)
   {
     Self self;
     std::fill(self._data, self._data+size, value);
@@ -22,7 +22,7 @@ struct Array
   }
   template <Iterable It_T>
     requires Sized<It_T>
-  static constexpr Self from(const It_T v)
+  static macro Self from(const It_T v)
   {
     Self self;
     typename It_T::iterator it = v.begin();
@@ -32,7 +32,7 @@ struct Array
     return self;
   }
   template <Iterable It_T>
-  static constexpr Self from(const It_T v)
+  static macro Self from(const It_T v)
   {
     Self self;
     typename It_T::iterator it = v.begin();
@@ -41,37 +41,37 @@ struct Array
     return self;
   }
 
-  constexpr View<const T> to_view() const
+  macro View<const T> to_view() const
   { return View<const T>::range(_data, size); }
-  constexpr View<const T> slice(u32 length) const
+  macro View<const T> slice(u32 length) const
   { return View<T>::range(_data, std::min(size, length)); }
-  constexpr View<T> slice(u32 length)
+  macro View<T> slice(u32 length)
   { return View<T>::range(_data, std::min(size, length)); }
-  constexpr View<T> slice(u32 begin, u32 end) const;
-  constexpr const T& operator[](const i32 index) const;
-  constexpr T& operator[](const i32 index);
-  constexpr T& last() const
+  macro View<T> slice(u32 begin, u32 end) const;
+  macro const T& operator[](const i32 index) const;
+  macro T& operator[](const i32 index);
+  macro T& last() const
   { return _data[size-1]; }
-  constexpr T& first() const
+  macro T& first() const
   { return _data[0]; }
-  constexpr const T* begin() const
+  macro const T* begin() const
   { return _data; }
-  constexpr const T* end() const
+  macro const T* end() const
   { return _data+size; }
-  constexpr T* begin()
+  macro T* begin()
   { return _data; }
-  constexpr T* end()
+  macro T* end()
   { return _data+size; }
 
-  constexpr T* data() { return _data; }
-  constexpr const T* data() const { return _data; }
-  constexpr u32 len() const { return size; }
-  constexpr bool is_empty() const
+  macro T* data() { return _data; }
+  macro const T* data() const { return _data; }
+  macro u32 len() const { return size; }
+  macro bool is_empty() const
   { return size == 0; }
 
-  constexpr void destroy()
+  macro void destroy()
   {
-    if constexpr(Destroyable<T>)
+    if macro(Destroyable<T>)
       for (T& obj : *this)
         obj.destroy();
   }
@@ -85,7 +85,7 @@ struct Array
 };
 
 template <class T, u32 size>
-constexpr View<T> Array<T, size>::slice(u32 begin, u32 end) const
+macro View<T> Array<T, size>::slice(u32 begin, u32 end) const
 {
   assert(end <= size);
   assert(begin <= end);
@@ -93,7 +93,7 @@ constexpr View<T> Array<T, size>::slice(u32 begin, u32 end) const
 }
 
 template <class T, u32 size>
-constexpr const T& Array<T, size>::operator[](const i32 i) const
+macro const T& Array<T, size>::operator[](const i32 i) const
 {
   const u32 index = i < 0 ? len() + i : i;
   assert(index >= 0);
@@ -101,7 +101,7 @@ constexpr const T& Array<T, size>::operator[](const i32 i) const
   return _data[index];
 }
 template <class T, u32 size>
-constexpr T& Array<T, size>::operator[](const i32 i)
+macro T& Array<T, size>::operator[](const i32 i)
 {
   const u32 index = i < 0 ? len() + i : i;
   assert(index >= 0);

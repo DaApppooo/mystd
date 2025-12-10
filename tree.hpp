@@ -34,7 +34,6 @@ Templates:
 #include "macros.hpp"
 #include "opt.hpp"
 #include "traits.hpp"
-#include "allocator.hpp"
 template <class T, size_t cap>
   requires (cap > 0)
 struct StackLinTree;
@@ -61,12 +60,6 @@ trait TreeTrait = requires (T a)
   { a.root() } -> std::convertible_to<Opt<typename T::node_type>>;
 };
 
-template <TreeNodeTrait NodeType>
-struct TreeView
-{
-  NodeType* p;
-};
-
 template <class T, size_t cap>
   requires (cap > 0)
 struct StackLinTree
@@ -75,22 +68,22 @@ struct StackLinTree
   struct NodeData;
   using node_type = NodeData&;
   using const_node_type = const NodeData&;
-  static constexpr u32 NO_PARENT = UINT32_MAX;
+  static macro u32 NO_PARENT = UINT32_MAX;
   struct NodeData
   {
     using value_type = T;
     T _val;
     u32 _cc; // child count + sub-... child count + 1
     u32 _parent; // absolute index of the parent
-    inline constexpr u32 children_count() const { return _cc - 1; }
-    inline constexpr u32 len() const { return children_count(); }
-    constexpr T& get() { return _val; }
-    constexpr const T& get() const { return _val; }
-    constexpr T& operator * () { return _val; }
-    constexpr const T& operator * () const { return _val; }
-    constexpr T* operator -> () { return &_val; }
-    constexpr const T* operator -> () const { return &_val; }
-    constexpr node_type operator [] (u32 i)
+    inline macro u32 children_count() const { return _cc - 1; }
+    inline macro u32 len() const { return children_count(); }
+    macro T& get() { return _val; }
+    macro const T& get() const { return _val; }
+    macro T& operator * () { return _val; }
+    macro const T& operator * () const { return _val; }
+    macro T* operator -> () { return &_val; }
+    macro const T* operator -> () const { return &_val; }
+    macro node_type operator [] (u32 i)
     {
       NodeData* p = this + 1;
       while (i > 0)
@@ -99,25 +92,25 @@ struct StackLinTree
       };
       return *p;
     }
-    constexpr const_node_type operator [] (u32 i) const
+    macro const_node_type operator [] (u32 i) const
     {
       const NodeData* p = this + 1;
       while (i-- > 0) p = p + p->_cc;
       return *p;
     }
     // returns next sibling (faster than indexing)
-    constexpr node_type next() { return *(this + _cc); }
+    macro node_type next() { return *(this + _cc); }
   };
   
   Array<NodeData, cap> _data;
 
-  static constexpr Self rootless() noexcept
+  static macro Self rootless() noexcept
   {
     Self temp = {Array<T, cap>::init()};
     temp._data[0]._cc = 0;
   }
 
-  static constexpr Self with_root(Own<T> val) noexcept
+  static macro Self with_root(Own<T> val) noexcept
   {
     const NodeData temp = { val, 1, NO_PARENT };
     return Self{Array<NodeData,cap>::from(
@@ -125,26 +118,26 @@ struct StackLinTree
     )};
   }
 
-  constexpr bool has_root() const { return _data[0]._cc != 0; }
-  constexpr Self& add_root(Own<T> val)
+  macro bool has_root() const { return _data[0]._cc != 0; }
+  macro Self& add_root(Own<T> val)
   { need(_data.len() == 0); _data.push({val, 1, NO_PARENT}); return *this; }
-  constexpr const Self& add_root(Own<T> val) const
+  macro const Self& add_root(Own<T> val) const
   { need(_data.len() == 0); _data.push({val, 1, NO_PARENT}); return *this; }
 
-  constexpr Opt<node_type> root() noexcept
+  macro Opt<node_type> root() noexcept
   {
     if (_data.len())
       return _data[0];
     return _;
   }
-  constexpr Opt<const_node_type> root() const noexcept
+  macro Opt<const_node_type> root() const noexcept
   {
     if (_data.len())
       return _data[0];
     return _;
   }
 
-  constexpr node_type add_child(node_type parent, Own<T> val)
+  macro node_type add_child(node_type parent, Own<T> val)
   {
     need(&parent >= _data.begin()); // implies that tree contains root
     need(&parent < _data.begin()+_data[0]._cc);
@@ -168,12 +161,12 @@ struct StackLinTree
   }
 
   // destroys the child and remove any grand-child
-  constexpr void rm(const_node_type node) = delete; // TODO
+  macro void rm(const_node_type node) = delete; // TODO
   // {
   //   need(&node >= _data.begin()); // implies that tree contains root
   //   need(&node < _data.begin()+_data[0]._cc);
   //   const size_t index = &node - _data.begin();
-  //   if constexpr(Destroyable<T>)
+  //   if macro(Destroyable<T>)
   //   {
   //     while (node._cc > 1)
   //     {
@@ -193,7 +186,7 @@ struct StackLinTree
   //   }
   // }
 
-  constexpr Opt<node_type> parent(const_node_type child)
+  macro Opt<node_type> parent(const_node_type child)
   {
     need(&child >= _data.begin());
     need(&child < _data.end());
@@ -201,7 +194,7 @@ struct StackLinTree
       return _;
     return _data[child._parent];
   }
-  constexpr Opt<const_node_type> parent(const_node_type child) const
+  macro Opt<const_node_type> parent(const_node_type child) const
   {
     need(&child >= _data.begin());
     need(&child < _data.end());
@@ -219,30 +212,30 @@ struct StackLinTree
       using difference_type = std::ptrdiff_t;
       using value_type = T;
       NodeData* p;
-      constexpr Self operator ++ () { p += p->_cc; return *this; }
-      constexpr bool operator == (const Self other) const
+      macro Self operator ++ () { p += p->_cc; return *this; }
+      macro bool operator == (const Self other) const
       { return p == other.p; }
-      constexpr T& operator * () { return p->_val; }
-      constexpr const T& operator * () const { return p->_val; }
-      constexpr T* operator -> () { return p->_val; }
-      constexpr const T* operator -> () const { return p->_val; }
-      constexpr std::ptrdiff_t operator - (const Self other) const
+      macro T& operator * () { return p->_val; }
+      macro const T& operator * () const { return p->_val; }
+      macro T* operator -> () { return p->_val; }
+      macro const T* operator -> () const { return p->_val; }
+      macro std::ptrdiff_t operator - (const Self other) const
       { return p - other.p; }
     };
-    constexpr iterator begin() { return {_parent+1}; }
-    constexpr iterator end() { return {_parent+_parent->_cc}; }
-    constexpr const iterator begin() const { return {_parent+1}; }
-    constexpr const iterator end() const { return {_parent+_parent->_cc}; }
-    constexpr const iterator cbegin() const { return {_parent+1}; }
-    constexpr const iterator cend() const { return {_parent+_parent->_cc}; }
+    macro iterator begin() { return {_parent+1}; }
+    macro iterator end() { return {_parent+_parent->_cc}; }
+    macro const iterator begin() const { return {_parent+1}; }
+    macro const iterator end() const { return {_parent+_parent->_cc}; }
+    macro const iterator cbegin() const { return {_parent+1}; }
+    macro const iterator cend() const { return {_parent+_parent->_cc}; }
   };
-  constexpr const _FixedLevelTraversal siblings(const_node_type node) const
+  macro const _FixedLevelTraversal siblings(const_node_type node) const
   { need(node._parent != NO_PARENT); return {_data.data()+node._parent}; }
-  constexpr const _FixedLevelTraversal children(const_node_type parent) const
+  macro const _FixedLevelTraversal children(const_node_type parent) const
   { return {&parent}; }
-  constexpr _FixedLevelTraversal siblings(const_node_type node)
+  macro _FixedLevelTraversal siblings(const_node_type node)
   { need(node._parent != NO_PARENT); return {_data.data()+node._parent}; }
-  constexpr _FixedLevelTraversal children(const_node_type parent)
+  macro _FixedLevelTraversal children(const_node_type parent)
   { return {&parent}; }
 
   struct _DepthFirstTraversal
@@ -254,22 +247,22 @@ struct StackLinTree
       using difference_type = std::ptrdiff_t;
       using value_type = T;
       NodeData* p;
-      constexpr Self operator ++ () { p += p->_cc; return *this; }
-      constexpr bool operator == (const Self other) const
+      macro Self operator ++ () { p += p->_cc; return *this; }
+      macro bool operator == (const Self other) const
       { return p == other.p; }
-      constexpr T& operator * () { return p->_val; }
-      constexpr const T& operator * () const { return p->_val; }
-      constexpr T* operator -> () { return p->_val; }
-      constexpr const T* operator -> () const { return p->_val; }
-      constexpr std::ptrdiff_t operator - (const Self other) const
+      macro T& operator * () { return p->_val; }
+      macro const T& operator * () const { return p->_val; }
+      macro T* operator -> () { return p->_val; }
+      macro const T* operator -> () const { return p->_val; }
+      macro std::ptrdiff_t operator - (const Self other) const
       { return p - other.p; }
     };
-    constexpr iterator begin() { return {_parent+1}; }
-    constexpr iterator end() { return {_parent+_parent->_cc}; }
-    constexpr const iterator begin() const { return {_parent+1}; }
-    constexpr const iterator end() const { return {_parent+_parent->_cc}; }
-    constexpr const iterator cbegin() const { return {_parent+1}; }
-    constexpr const iterator cend() const { return {_parent+_parent->_cc}; }
+    macro iterator begin() { return {_parent+1}; }
+    macro iterator end() { return {_parent+_parent->_cc}; }
+    macro const iterator begin() const { return {_parent+1}; }
+    macro const iterator end() const { return {_parent+_parent->_cc}; }
+    macro const iterator cbegin() const { return {_parent+1}; }
+    macro const iterator cend() const { return {_parent+_parent->_cc}; }
   };
 };
 
@@ -279,8 +272,6 @@ struct HeapLinFixTree
   
 };
 
-
-
 template <class T, size_t n>
 struct HeapNodeFixTree
 {
@@ -288,26 +279,13 @@ struct HeapNodeFixTree
   struct Node;
   using node_type = Node&;
   using const_node_type = const Node&;
-  struct OwnedNode
-  {
-    Node* p;
-    constexpr OwnedNode(const Node* p_) : p(p_) {}
-    constexpr OwnedNode& operator = (const Node* p_) { p = p_; return *this; }
-    constexpr Node& operator * () { return *p; }
-    constexpr const Node& operator * () const { return *p; }
-    constexpr Node* operator -> () { return *p; }
-    constexpr const Node* operator -> () const { return *p; }
-    constexpr bool operator == (const Node* p_) { return p == p_; }
-    constexpr operator Node* () { return p; }
-    constexpr operator const Node* () const { return p; }
-    
-  };
+
   struct Node
   {
     using value_type = T;
     T _val;
-    Array<OwnedNode, n> _children;
-    inline constexpr u32 children_count() const
+    Array<owned_ptr<Node>, n> _children;
+    inline macro u32 children_count() const
     {
       u32 acc = 0;
       for (const Node* p : _children)
@@ -315,55 +293,43 @@ struct HeapNodeFixTree
           acc++;
       return acc;
     }
-    inline constexpr u32 len() { return children_count(); }
-    constexpr T& get() { return _val; }
-    constexpr const T& get() const { return _val; }
-    constexpr T& operator * () { return _val; }
-    constexpr const T& operator * () const { return _val; }
-    constexpr T* operator -> () { return &_val; }
-    constexpr const T* operator -> () const { return &_val; }
-    constexpr node_type operator [] (u32 i)
+    inline macro u32 len() { return children_count(); }
+    macro T& get() { return _val; }
+    macro const T& get() const { return _val; }
+    macro T& operator * () { return _val; }
+    macro const T& operator * () const { return _val; }
+    macro T* operator -> () { return &_val; }
+    macro const T* operator -> () const { return &_val; }
+    macro node_type operator [] (u32 i)
     { return *_children[i]; }
-    constexpr const_node_type operator [] (u32 i) const
+    macro const_node_type operator [] (u32 i) const
     { return *_children[i]; }
-    constexpr void destroy() const
-    {
-      for (const Node* p : _children)
-        if (p)
-          allocator::free(p);
-    }
+    macro void destroy() const { _children.destroy(); }
+    macro void destroy() { _children.destroy(); }
   };
   
-  OwnedNode _root;
+  owned_ptr<Node> _root;
 
-  static constexpr Self rootless() noexcept
+  static macro Self rootless() noexcept
   { return {nullptr}; }
 
-  static constexpr Self with_root(Own<T> val) noexcept
+  static macro Self with_root(Own<T> val) noexcept
   {
-    _root = allocator::alloc(1)
+    mut self = Self{ ._root = alloc<T>(1) };
+    std::copy(&val, 1+&val, self._root.ptr);
+    
   }
 
-  constexpr bool has_root() const { return _data[0]._cc != 0; }
-  constexpr Self& add_root(Own<T> val)
-  { need(_data.len() == 0); _data.push({val, 1, NO_PARENT}); return *this; }
-  constexpr const Self& add_root(Own<T> val) const
-  { need(_data.len() == 0); _data.push({val, 1, NO_PARENT}); return *this; }
+  macro bool has_root() const { return _root != nullptr; }
+  macro Self& add_root(Own<T> val)
+  { need(!has_root()); _root = ; return *this; }
 
-  constexpr Opt<node_type> root() noexcept
-  {
-    if (_data.len())
-      return _data[0];
-    return _;
-  }
-  constexpr Opt<const_node_type> root() const noexcept
-  {
-    if (_data.len())
-      return _data[0];
-    return _;
-  }
+  macro Opt<node_type> root() noexcept
+  { if (_root) return *_root; return _; }
+  macro Opt<const_node_type> root() const noexcept
+  { if (_root) return *_root; return _; }
 
-  constexpr node_type add_child(node_type parent, Own<T> val)
+  macro node_type add_child(node_type parent, Own<T> val)
   {
     need(&parent >= _data.begin()); // implies that tree contains root
     need(&parent < _data.begin()+_data[0]._cc);
@@ -387,12 +353,12 @@ struct HeapNodeFixTree
   }
 
   // destroys the child and remove any grand-child
-  constexpr void rm(const_node_type node) = delete; // TODO
+  macro void rm(const_node_type node) = delete; // TODO
   // {
   //   need(&node >= _data.begin()); // implies that tree contains root
   //   need(&node < _data.begin()+_data[0]._cc);
   //   const size_t index = &node - _data.begin();
-  //   if constexpr(Destroyable<T>)
+  //   if macro(Destroyable<T>)
   //   {
   //     while (node._cc > 1)
   //     {
@@ -412,7 +378,7 @@ struct HeapNodeFixTree
   //   }
   // }
 
-  constexpr Opt<node_type> parent(const_node_type child)
+  macro Opt<node_type> parent(const_node_type child)
   {
     need(&child >= _data.begin());
     need(&child < _data.end());
@@ -420,7 +386,7 @@ struct HeapNodeFixTree
       return _;
     return _data[child._parent];
   }
-  constexpr Opt<const_node_type> parent(const_node_type child) const
+  macro Opt<const_node_type> parent(const_node_type child) const
   {
     need(&child >= _data.begin());
     need(&child < _data.end());
@@ -438,30 +404,30 @@ struct HeapNodeFixTree
       using difference_type = std::ptrdiff_t;
       using value_type = T;
       Node* p;
-      constexpr Self operator ++ () { p += p->_cc; return *this; }
-      constexpr bool operator == (const Self other) const
+      macro Self operator ++ () { p += p->_cc; return *this; }
+      macro bool operator == (const Self other) const
       { return p == other.p; }
-      constexpr T& operator * () { return p->_val; }
-      constexpr const T& operator * () const { return p->_val; }
-      constexpr T* operator -> () { return p->_val; }
-      constexpr const T* operator -> () const { return p->_val; }
-      constexpr std::ptrdiff_t operator - (const Self other) const
+      macro T& operator * () { return p->_val; }
+      macro const T& operator * () const { return p->_val; }
+      macro T* operator -> () { return p->_val; }
+      macro const T* operator -> () const { return p->_val; }
+      macro std::ptrdiff_t operator - (const Self other) const
       { return p - other.p; }
     };
-    constexpr iterator begin() { return {_parent+1}; }
-    constexpr iterator end() { return {_parent+_parent->_cc}; }
-    constexpr const iterator begin() const { return {_parent+1}; }
-    constexpr const iterator end() const { return {_parent+_parent->_cc}; }
-    constexpr const iterator cbegin() const { return {_parent+1}; }
-    constexpr const iterator cend() const { return {_parent+_parent->_cc}; }
+    macro iterator begin() { return {_parent+1}; }
+    macro iterator end() { return {_parent+_parent->_cc}; }
+    macro const iterator begin() const { return {_parent+1}; }
+    macro const iterator end() const { return {_parent+_parent->_cc}; }
+    macro const iterator cbegin() const { return {_parent+1}; }
+    macro const iterator cend() const { return {_parent+_parent->_cc}; }
   };
-  constexpr const _FixedLevelTraversal siblings(const_node_type node) const
+  macro const _FixedLevelTraversal siblings(const_node_type node) const
   { need(node._parent != NO_PARENT); return {_data.data()+node._parent}; }
-  constexpr const _FixedLevelTraversal children(const_node_type parent) const
+  macro const _FixedLevelTraversal children(const_node_type parent) const
   { return {&parent}; }
-  constexpr _FixedLevelTraversal siblings(const_node_type node)
+  macro _FixedLevelTraversal siblings(const_node_type node)
   { need(node._parent != NO_PARENT); return {_data.data()+node._parent}; }
-  constexpr _FixedLevelTraversal children(const_node_type parent)
+  macro _FixedLevelTraversal children(const_node_type parent)
   { return {&parent}; }
 
   struct _DepthFirstTraversal
@@ -473,22 +439,30 @@ struct HeapNodeFixTree
       using difference_type = std::ptrdiff_t;
       using value_type = T;
       Node* p;
-      constexpr Self operator ++ () { p += p->_cc; return *this; }
-      constexpr bool operator == (const Self other) const
+      macro Self operator ++ () { p += p->_cc; return *this; }
+      macro bool operator == (const Self other) const
       { return p == other.p; }
-      constexpr T& operator * () { return p->_val; }
-      constexpr const T& operator * () const { return p->_val; }
-      constexpr T* operator -> () { return p->_val; }
-      constexpr const T* operator -> () const { return p->_val; }
-      constexpr std::ptrdiff_t operator - (const Self other) const
+      macro T& operator * () { return p->_val; }
+      macro const T& operator * () const { return p->_val; }
+      macro T* operator -> () { return p->_val; }
+      macro const T* operator -> () const { return p->_val; }
+      macro std::ptrdiff_t operator - (const Self other) const
       { return p - other.p; }
     };
-    constexpr iterator begin() { return {_parent+1}; }
-    constexpr iterator end() { return {_parent+_parent->_cc}; }
-    constexpr const iterator begin() const { return {_parent+1}; }
-    constexpr const iterator end() const { return {_parent+_parent->_cc}; }
-    constexpr const iterator cbegin() const { return {_parent+1}; }
-    constexpr const iterator cend() const { return {_parent+_parent->_cc}; }
+    macro iterator begin() { return {_parent+1}; }
+    macro iterator end() { return {_parent+_parent->_cc}; }
+    macro const iterator begin() const { return {_parent+1}; }
+    macro const iterator end() const { return {_parent+_parent->_cc}; }
+    macro const iterator cbegin() const { return {_parent+1}; }
+    macro const iterator cend() const { return {_parent+_parent->_cc}; }
   };
 };
+
+template <class T, size_t n>
+macro void HeapNodeFixTree<T,n>::OwnedNode::destroy() const
+{
+  
+}
+macro void destroy();
+
 

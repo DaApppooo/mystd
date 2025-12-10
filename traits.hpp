@@ -41,7 +41,7 @@ trait NonPrimDropable = requires (T g)
 trait Dropable =
   Primitive<T>
   || NonPrimDropable<T>;
-trait Destroyable = requires (T d)
+trait Destroyable = requires (const T d)
 { d.destroy(); };
 trait Copiable =
    Primitive<T>
@@ -54,28 +54,28 @@ trait Sized =
   { { o.len() } -> std::convertible_to<std::size_t>; }
   || _ImplSize<T>;
 template <Sized S>
-constexpr size_t size(const Ref<S>& c)
+inline macro size_t size(const Ref<S>& c)
 {
   // prefer .size (because math::Vec.len != math::Vec.size)
-  if constexpr(_ImplSize<S>)
+  if macro(_ImplSize<S>)
     return c.size();
   else
     return c.len();
 }
 
 template <Copiable C>
-constexpr Own<C> copy(const Ref<C>& c)
+inline macro Own<C> copy(const Ref<C>& c)
 {
-  if constexpr(Primitive<C>)
+  if macro(Primitive<C>)
     return c;
   else
     return c.copy();
 }
 
 template <Dropable T>
-constexpr Own<T> drop(Own<T>& o)
+inline macro Own<T> drop(Own<T>& o)
 {
-  if constexpr(NonPrimDropable<T>)
+  if macro(NonPrimDropable<T>)
     return o.drop();
   else
     return o;
@@ -97,24 +97,24 @@ trait Decr = requires (T a)
 { { ++a } -> std::same_as<T&>; };
 
 template <Incr I>
-constexpr I operator ++ (I& i, int)
+macro I operator ++ (I& i, int)
 {
   const I temp = i;
   ++i;
   return temp;
 }
 template <Decr I>
-constexpr I operator -- (I& i, int)
+macro I operator -- (I& i, int)
 {
   const I temp = i;
   --i;
   return temp;
 }
 template <GreaterThan T>
-constexpr bool operator < (T a, T b)
+macro bool operator < (T a, T b)
 { return b > a; }
 template <Eq T>
-constexpr bool operator != (T a, T b)
+macro bool operator != (T a, T b)
 { return !(a == b); }
 
 trait InputIterator = std::input_iterator<T>;
