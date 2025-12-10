@@ -76,6 +76,14 @@ struct Opt
     return _obj;
   }
 
+  constexpr bool get(T& v)
+  {
+    if (_status == NONE)
+      return false;
+    v = _obj;
+    return true;
+  }
+
   constexpr const T& get() const
   {
     need(_status == SOME);

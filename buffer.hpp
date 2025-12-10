@@ -48,6 +48,9 @@ struct View
   constexpr View(const It& it)
     : _begin(&*(it.begin())), _len(it.len()) {}
 
+  template <class U>
+  static constexpr View<T> wrap(U& u)
+  { return {static_cast<T*>(&u), 1}; }
   static constexpr View<T> range(T* start, u32 len)
   { return {start, len}; }
   static constexpr View<T> cstr(T* start) = delete;
@@ -63,6 +66,9 @@ struct View
   { return { (typename std::remove_const<T>::type*)_begin, _len }; }
   constexpr View<const T> to_const() const
   { return { (const T*)_begin, _len }; }
+  template <class U>
+  constexpr View<U> as() const
+  { return { static_cast<U*>(_begin), _len*sizeof(T)/sizeof(U) }; }  
   constexpr bool is_null() const
   { return !_begin; }
   constexpr T* begin()
@@ -110,6 +116,8 @@ struct View
   { return View<T>::range(_begin+start, end-start); }
   constexpr View<T>& shorten(u32 diff)
   { _len -= diff; return *this; }
+  constexpr HeapBuffer<View<T>> split(const T& item) const;
+  constexpr HeapBuffer<T> alloc() const;
 
   // serde
   serde::Result serialize(serde::SerCallback cb, void* data) const;
@@ -792,9 +800,37 @@ struct std::formatter<const View<const T>, char>
   }
 };
 
+template <class T>
+constexpr HeapBuffer<View<T>> View<T>::split(const T& item) const
+{
+  // 1. count
+  u32 c = 1;
+  for (const T& e : *this)
+    if (e == item)
+      c++;
+  mut h = HeapBuffer<View<T>>::alloc(c);
+  u32 prev = 0;
+  // 2. split
+  for (c = 0; c < _len; c++)
+  {
+    if (_begin[c] != item)
+      continue;
+    h.push(View<T>::range(_begin+prev, c-prev));
+    prev = c;
+  }
+  h.push(View<T>::range(_begin+prev, c-prev));
+  return h;
+}
+
+template <class T>
+constexpr HeapBuffer<T> View<T>::alloc() const
+{ return HeapBuffer<T>::from(to_const()); }
+
+
 #undef self
 #undef Self
 #undef L
 
 #endif
+
 
