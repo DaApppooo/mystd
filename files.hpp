@@ -37,16 +37,29 @@ struct File
   }
   static File init() noexcept { return {nullptr}; }
 
+  i64 size() const
+  {
+    const long prev = ftell(_fp);
+    fseek(_fp, 0, SEEK_END);
+    const long l = ftell(_fp);
+    fseek(_fp, prev, SEEK_SET);
+    return l;
+  }
+
+  
+
   View<u8> read_into(View<u8> bytes) const
   {
     const size_t s = fread(bytes.begin(), 1, bytes.len(), _fp);
     return View<u8>::range(bytes.begin(), u32(s));
   }
+
   Own<View<u8>> read(View<u8> bytes) const
   {
     const size_t s = fread(bytes.begin(), 1, bytes.len(), _fp);
     return View<u8>::range(bytes.begin(), u32(s));
   }
+  
 
 
   void close()

@@ -92,7 +92,7 @@ struct owned_ptr
     std::copy(&val, 1+&val, self.ptr);
     return self;
   }
-  static macro owned_ptr<T, allocator> alloc(Own<T>* val)
+  static macro owned_ptr<T, allocator> alloc(const Own<T>* val)
   {
     owned_ptr<T, allocator> self;
     self.ptr = allocator::alloc(sizeof(T));

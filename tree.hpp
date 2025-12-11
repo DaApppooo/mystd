@@ -29,11 +29,13 @@ Templates:
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include "allocator.hpp"
 #include "buffer.hpp"
 #include "array.hpp"
 #include "macros.hpp"
 #include "opt.hpp"
 #include "traits.hpp"
+#include "types.hpp"
 template <class T, size_t cap>
   requires (cap > 0)
 struct StackLinTree;
@@ -58,6 +60,76 @@ trait TreeTrait = requires (T a)
 {
   requires TreeNodeTrait<typename remove_ref<T>::node_type>;
   { a.root() } -> std::convertible_to<Opt<typename T::node_type>>;
+};
+
+template <class T, size_t n>
+struct SparseFix1Node
+{
+  using Self = SparseFix1Node<T, n>;
+  using value_type = T;
+  T _val;
+  Array<owned_ptr<Self>, n> _children;
+  inline macro u32 children_count() const
+  {
+    u32 acc = 0;
+    for (const Self* p : _children)
+      if (p)
+        acc++;
+    return acc;
+  }
+  inline macro u32 len() { return children_count(); }
+  macro T& get() { return _val; }
+  macro const T& get() const { return _val; }
+  macro T& operator * () { return _val; }
+  macro const T& operator * () const { return _val; }
+  macro T* operator -> () { return &_val; }
+  macro const T* operator -> () const { return &_val; }
+  macro Self& operator [] (u32 i)
+  { return *_children[i]; }
+  macro const Self& operator [] (u32 i) const
+  { return *_children[i]; }
+  macro void destroy() const { _children.destroy(); }
+  macro void destroy() { _children.destroy(); }
+
+  macro Opt<Self&> add(Own<T> val)
+  {
+    for (owned_ptr<Self>& p : _children)
+    {
+      if (p)
+        continue;
+      p = owned_ptr<Self>::alloc(val);
+      return *p;
+    }
+    return _;
+  }
+  macro Opt<Self&> add(const Own<T>* val)
+  {
+    for (owned_ptr<Self>& p : _children)
+    {
+      if (p)
+        continue;
+      p = owned_ptr<Self>::alloc(val);
+      return *p;
+    }
+    return _;
+  }
+  // Address check. Doesn't do anything if the element isn't there.
+  macro void rm(const Self& node)
+  {
+    for (owned_ptr<Self>& p : _children)
+    {
+      if (p != &node)
+        continue;
+      p.destroy();
+    }
+  }
+  macro void rm(i32 index)
+  { _children[index].destroy(); }
+  
+
+
+  macro View<owned_ptr<Self>> children() const
+  { return _children.to_view(); }
 };
 
 template <class T, size_t cap>
@@ -280,120 +352,24 @@ struct HeapNodeFixTree
   using node_type = Node&;
   using const_node_type = const Node&;
 
-  struct Node
-  {
-    using value_type = T;
-    T _val;
-    Array<owned_ptr<Node>, n> _children;
-    inline macro u32 children_count() const
-    {
-      u32 acc = 0;
-      for (const Node* p : _children)
-        if (p)
-          acc++;
-      return acc;
-    }
-    inline macro u32 len() { return children_count(); }
-    macro T& get() { return _val; }
-    macro const T& get() const { return _val; }
-    macro T& operator * () { return _val; }
-    macro const T& operator * () const { return _val; }
-    macro T* operator -> () { return &_val; }
-    macro const T* operator -> () const { return &_val; }
-    macro node_type operator [] (u32 i)
-    { return *_children[i]; }
-    macro const_node_type operator [] (u32 i) const
-    { return *_children[i]; }
-    macro void destroy() const { _children.destroy(); }
-    macro void destroy() { _children.destroy(); }
-  };
-  
   owned_ptr<Node> _root;
 
   static macro Self rootless() noexcept
   { return {nullptr}; }
 
   static macro Self with_root(Own<T> val) noexcept
-  {
-    mut self = Self{ ._root = alloc<T>(1) };
-    std::copy(&val, 1+&val, self._root.ptr);
-    
-  }
+  { return Self{ ._root = owned_ptr<Node>::alloc(val) }; }
+  static macro Self with_root(const Own<T>* val) noexcept
+  { return Self{ ._root = owned_ptr<Node>::alloc(val) }; }
 
   macro bool has_root() const { return _root != nullptr; }
   macro Self& add_root(Own<T> val)
-  { need(!has_root()); _root = ; return *this; }
+  { need(!has_root()); _root = owned_ptr<Node>::alloc(val); return *this; }
 
   macro Opt<node_type> root() noexcept
   { if (_root) return *_root; return _; }
   macro Opt<const_node_type> root() const noexcept
   { if (_root) return *_root; return _; }
-
-  macro node_type add_child(node_type parent, Own<T> val)
-  {
-    need(&parent >= _data.begin()); // implies that tree contains root
-    need(&parent < _data.begin()+_data[0]._cc);
-    need(_data[0]._cc < cap);
-    parent._cc++;
-    size_t pi = parent._parent;
-    while (pi != NO_PARENT)
-    {
-      _data[pi]._cc++;
-      pi = _data[pi]._parent;
-    }
-    const size_t parent_index = &parent - _data.begin();
-    const size_t index = &parent - _data.begin() + parent._cc - 1;
-    std::copy(
-      _data.data()+index,
-      _data.data()+_data[0]._cc-1,
-      _data.data()+index+1
-    );
-    _data[index] = NodeData{val, 1, u32(parent_index)};
-    return _data[index];
-  }
-
-  // destroys the child and remove any grand-child
-  macro void rm(const_node_type node) = delete; // TODO
-  // {
-  //   need(&node >= _data.begin()); // implies that tree contains root
-  //   need(&node < _data.begin()+_data[0]._cc);
-  //   const size_t index = &node - _data.begin();
-  //   if macro(Destroyable<T>)
-  //   {
-  //     while (node._cc > 1)
-  //     {
-  //       u32 pi = index+1;
-  //       while (_data[pi]._cc > 1)
-  //       {
-  //         _data[pi]._cc--;
-  //         pi++;
-  //       }
-  //       _data[pi]._val.destroy();
-  //       node._cc--;
-  //       // std::copy(
-  //       //   // _data.data() + pi + 1,
-  //       //   // _data.data() + _data[0].
-  //       // );
-  //     }
-  //   }
-  // }
-
-  macro Opt<node_type> parent(const_node_type child)
-  {
-    need(&child >= _data.begin());
-    need(&child < _data.end());
-    if (child._parent == NO_PARENT)
-      return _;
-    return _data[child._parent];
-  }
-  macro Opt<const_node_type> parent(const_node_type child) const
-  {
-    need(&child >= _data.begin());
-    need(&child < _data.end());
-    if (child._parent == NO_PARENT)
-      return _;
-    return _data[child._parent];
-  }
 
   struct _FixedLevelTraversal
   { // traverse from left to right one single depth level
