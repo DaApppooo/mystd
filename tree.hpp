@@ -125,12 +125,46 @@ struct SparseFix1Node
   }
   macro void rm(i32 index)
   { _children[index].destroy(); }
-  
-
 
   macro View<owned_ptr<Self>> children() const
   { return _children.to_view(); }
 };
+
+template <class T>
+struct LinNode
+{
+  using Self = LinNode<T>;
+  using value_type = T;
+  T _val;
+  u32 _cc; // child count + sub-... child count + 1
+  u32 _parent; // absolute index of the parent
+  inline macro u32 children_count() const { return _cc - 1; }
+  inline macro u32 len() const { return children_count(); }
+  macro T& get() { return _val; }
+  macro const T& get() const { return _val; }
+  macro T& operator * () { return _val; }
+  macro const T& operator * () const { return _val; }
+  macro T* operator -> () { return &_val; }
+  macro const T* operator -> () const { return &_val; }
+  macro Self& operator [] (u32 i)
+  {
+    Self* p = this + 1;
+    while (i > 0)
+    {
+      p += p->_cc; i--;
+    };
+    return *p;
+  }
+  macro const Self& operator [] (u32 i) const
+  {
+    const Self* p = this + 1;
+    while (i-- > 0) p = p + p->_cc;
+    return *p;
+  }
+  // returns next sibling (faster than indexing)
+  macro Self& next() { return *(this + _cc); }
+};
+
 
 template <class T, size_t cap>
   requires (cap > 0)
@@ -141,38 +175,6 @@ struct StackLinTree
   using node_type = NodeData&;
   using const_node_type = const NodeData&;
   static macro u32 NO_PARENT = UINT32_MAX;
-  struct NodeData
-  {
-    using value_type = T;
-    T _val;
-    u32 _cc; // child count + sub-... child count + 1
-    u32 _parent; // absolute index of the parent
-    inline macro u32 children_count() const { return _cc - 1; }
-    inline macro u32 len() const { return children_count(); }
-    macro T& get() { return _val; }
-    macro const T& get() const { return _val; }
-    macro T& operator * () { return _val; }
-    macro const T& operator * () const { return _val; }
-    macro T* operator -> () { return &_val; }
-    macro const T* operator -> () const { return &_val; }
-    macro node_type operator [] (u32 i)
-    {
-      NodeData* p = this + 1;
-      while (i > 0)
-      {
-        p += p->_cc; i--;
-      };
-      return *p;
-    }
-    macro const_node_type operator [] (u32 i) const
-    {
-      const NodeData* p = this + 1;
-      while (i-- > 0) p = p + p->_cc;
-      return *p;
-    }
-    // returns next sibling (faster than indexing)
-    macro node_type next() { return *(this + _cc); }
-  };
   
   Array<NodeData, cap> _data;
 
