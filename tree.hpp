@@ -125,6 +125,72 @@ struct SparseFix1Node
   }
   macro void rm(i32 index)
   { _children[index].destroy(); }
+  // Address check. Doesn't do anything if the element isn't there.
+  macro void rm(RVal<Ref<T>> auto val)
+  {
+    for (owned_ptr<Self>& p : _children)
+    {
+      if (p != use(val))
+        continue;
+      p.destroy();
+    }
+  }
+  
+
+  macro View<owned_ptr<Self>> children() const
+  { return _children.to_view(); }
+};
+
+template <class T>
+struct SparseDyn1Node
+{
+  using Self = SparseDyn1Node<T>;
+  using value_type = T;
+  T _val;
+  HeapBuffer<owned_ptr<Self>> _children;
+  inline macro u32 children_count() const
+  {  return _children.len(); }
+  inline macro u32 len() { return children_count(); }
+  macro T& get() { return _val; }
+  macro const T& get() const { return _val; }
+  macro T& operator * () { return _val; }
+  macro const T& operator * () const { return _val; }
+  macro T* operator -> () { return &_val; }
+  macro const T* operator -> () const { return &_val; }
+  macro Self& operator [] (u32 i)
+  { return *_children[i]; }
+  macro const Self& operator [] (u32 i) const
+  { return *_children[i]; }
+  macro void destroy() const { _children.destroy(); }
+  macro void destroy() { _children.destroy(); }
+
+  macro Opt<Self&> add(Own<T> val)
+  {
+    for ()
+  }
+  macro Opt<Self&> add(const Own<T>* val)
+  {
+    for (owned_ptr<Self>& p : _children)
+    {
+      if (p)
+        continue;
+      p = owned_ptr<Self>::alloc(val);
+      return *p;
+    }
+    return _;
+  }
+  // Address check. Doesn't do anything if the element isn't there.
+  macro void rm(const Self& node)
+  {
+    for (owned_ptr<Self>& p : _children)
+    {
+      if (p != &node)
+        continue;
+      p.destroy();
+    }
+  }
+  macro void rm(i32 index)
+  { _children[index].destroy(); }
 
   macro View<owned_ptr<Self>> children() const
   { return _children.to_view(); }

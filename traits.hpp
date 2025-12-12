@@ -17,10 +17,12 @@ trait NonPtrIndexable =
    requires { typename T::index_t; }
 && requires { typename T::indexed_type; }
 && std::integral<typename T::index_t>
-&& requires (T d, T::index_t i)
-{
-  { d[i] } -> std::same_as<typename T::indexed_type&>;
-};
+&& (
+   requires (T d, T::index_t i)
+    { { d[i] } -> std::same_as<typename T::indexed_type&>; }
+|| requires (const T d, const T::index_t i)
+    { { d[i] } -> std::same_as<const typename T::indexed_type&>; }
+);
 
 trait Indexable =
   NonPtrIndexable<T> || std::is_pointer_v<T>;
@@ -32,6 +34,27 @@ trait Primitive =
 || std::same_as<T, void>
 || std::is_pointer_v<T>
 || std::same_as<T, std::nullptr_t>;
+
+template <class T, class U>
+concept RVal =
+   std::convertible_to<T, U>
+|| std::convertible_to<T, const U*>;
+template <class T>
+macro const T& val_of(const RVal<T> auto val)
+{
+  if macro(std::is_pointer_v<decltype(val)>)
+    return *val;
+  else
+    return val;
+}
+template <class T>
+macro const T* addr_of(const RVal<T> auto val)
+{
+  if macro(std::is_pointer_v<decltype(val)>)
+    return val;
+  else
+    return &val;
+}
 
 // gives ownership to the output value
 // and resets self to the init state

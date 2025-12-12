@@ -106,14 +106,10 @@ struct View
     { if (!(*a == *b)) return false; ++a; ++b; }
     return true;
   }
-  macro T& operator[](i32 index) const
-  {
-    if (index < 0)
-    {
-      index = _len + index;
-    }
-    return _begin[index];
-  }
+  macro const T& operator[](index_t index) const
+  { return _begin[index < 0 ? _len + index : index]; }
+  macro T& operator[](index_t index)
+  { return _begin[index < 0 ? _len + index : index]; }
   macro View<T> operator[](u32 start, u32 end) const
   { return View<T>::range(_begin+start, end-start); }
   macro View<T>& shorten(u32 diff)
@@ -372,7 +368,7 @@ struct CustomBuffer
   { return _len > _cap; }
   static macro Self null()
   { return {._data = nullptr, ._len = 1, ._cap = 0}; }
-  macro Self& push(const T& element)
+  macro Self& push(const RVal<Own<T>> auto element)
   {
     _len++;
     if (_len > _cap)
@@ -381,7 +377,7 @@ struct CustomBuffer
       return *this;
     need(_cap >= _len);
     [[assume(_cap >= _len)]];
-    std::copy(&element, 1+&element, _data+_len-1);
+    std::copy(addr_of(element), 1+addr_of(element), _data+_len-1);
     return *this;
   }
   macro Self& extend(const View<const T>& ext);
