@@ -166,7 +166,7 @@ struct SparseDyn1Node
 
   macro Opt<Self&> add(Own<T> val)
   {
-    for ()
+    _children.push(val);
   }
   macro Opt<Self&> add(const Own<T>* val)
   {

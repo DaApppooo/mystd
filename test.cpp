@@ -1,21 +1,26 @@
-#include "buffer.hpp"
-#include "traits.hpp"
+#include "defer.hpp"
+#include "queue.hpp"
+#define USE_ARENA
+#include "allocator.hpp"
 
-template <class T>
-using List = HeapBuffer<T>;
-
-struct S
-{ int x; };
-
-List<S> arr;
-
-void add(const RVal<S> auto elem)
-{ arr.push(elem); }
+mod arena { arena::Arena current; }
 
 int main()
 {
-  let temp = S{3};
-  add(&temp);
+  mut a = arena::push(256);
+  mut q = Queue<i32, ArenaAllocator>::init();
+  defer [&q]{q.destroy();}; // <-- useless
+  println("{}", (void*)arena::current._p);
+  q.push(5);
+  println("{}", (void*)arena::current._p);
+  q.push(6);
+  println("{}", (void*)arena::current._p);
+  q.push(7);
+  println("{}", (void*)arena::current._p);
+  for (i32 i : q)
+    println("EE: {}", i);
+  arena::pop(a);
+  puts("Done !");
 }
 
 

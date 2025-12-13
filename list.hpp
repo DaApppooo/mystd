@@ -16,6 +16,9 @@ macro struct {
   }
 } list;
 
+template <class T>
+using List = HeapBuffer<T>;
+
 macro struct {
   template <class T, class... Ts>
   macro Array<T, 1+sizeof...(Ts)> operator [] (T arg0, Ts... args) const

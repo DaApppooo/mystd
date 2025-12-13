@@ -27,6 +27,10 @@ concept Allocator =
   || requires (Element*& p) {{ T::free(p) };}
 );
 
+template <class T, template <class T_sub> class freetype_allocator>
+  requires Allocator<freetype_allocator<T>, T>
+using const_allocator_of = freetype_allocator<const T>;
+
 template <class T>
 struct CAllocator
 {
@@ -34,7 +38,7 @@ struct CAllocator
   using value_type = raw_type;
   static macro raw_type* alloc(size_t s)
   { return (raw_type*)malloc(sizeof(T) * s); }
-  static macro raw_type* alloc(T* p, size_t s)
+  static macro raw_type* alloc(raw_type* p, size_t s)
   { return (raw_type*)realloc(p, sizeof(T)*s); }
   static macro void free(const raw_type* p)
   { ::free(reinterpret_cast<void*>(const_cast<T*>(p))); }
@@ -59,6 +63,7 @@ struct CppFixedAllocator
   static macro raw_type* alloc(size_t s)
   {
     u8* p = new u8[sizeof(T)*s + sizeof(size_t)];
+    s *= sizeof(T);
     std::copy(&s, 1+&s, p);
     return reinterpret_cast<raw_type*>(p + sizeof(size_t));
   }
@@ -76,7 +81,6 @@ struct CppFixedAllocator
   }
   static macro void free(const raw_type* p) { delete[] p; }
 };
-
 
 template <class T, Allocator<T> allocator = CAllocator<T>>
 struct owned_ptr
@@ -160,3 +164,74 @@ macro ptrdiff_t operator -
   { return b - a.ptr; }
 
 #endif
+
+#ifdef USE_ARENA
+mod arena
+{
+struct Arena
+{
+  u8* _p;
+  u8* _begin;
+  u32 _cap_left;
+
+  static macro Arena null() { return {nullptr, nullptr, 0}; }
+  macro bool is_null() const { return _p == nullptr && _begin == nullptr; }
+
+  template <Allocator<u8> allocator = CAllocator<u8>>
+  static macro Arena alloc(u32 cap)
+  { Arena out; out._p = out._begin = allocator::alloc(cap);
+    out._cap_left = cap; return out; }
+
+  template <Allocator<u8> allocator = CAllocator<u8>>
+  macro void destroy()
+  { if (_begin) allocator::free(_begin); _p = _begin = nullptr; }
+};
+
+extern Arena current; // must be defined somewhere in your source files
+
+template <Allocator<u8> allocator = CAllocator<u8>>
+[[nodiscard]]
+macro Ref<Arena> push(u32 cap)
+{ Arena ret = current; current = Arena::alloc<allocator>(cap); return ret; }
+
+template <Allocator<u8> allocator = CAllocator<u8>>
+macro void pop(Ref<Arena> arena)
+{ current.destroy<allocator>(); current = arena; }
+
+
+}
+
+template <class T>
+struct ArenaAllocator
+{
+  using raw_type = std::remove_all_extents_t<T>;
+  using value_type = raw_type;
+  static macro raw_type* alloc(u32 s)
+  {
+    const size_t size = sizeof(T) * s + sizeof(size_t);
+    if (arena::current._cap_left < size)
+      return nullptr;
+    u8* const ret = arena::current._p;
+    *reinterpret_cast<size_t*>(ret) = size;
+    arena::current._p += size;
+    arena::current._cap_left -= size;
+    return reinterpret_cast<raw_type*>(ret + sizeof(size_t));
+  }
+  static macro raw_type* alloc(raw_type* p, size_t s)
+  {
+    if (p == nullptr)
+      return alloc(s);
+    const size_t size = sizeof(T) * s + sizeof(size_t);
+    if (arena::current._cap_left < size)
+      return nullptr;
+    u8* const ret = arena::current._p;
+    *reinterpret_cast<size_t*>(ret) = size;
+    arena::current._p += size;
+    arena::current._cap_left -= size;
+    const size_t old_size = *(reinterpret_cast<size_t*>(p)-1) - sizeof(size_t);
+    std::copy(p, p + old_size, ret + sizeof(size_t));
+    return reinterpret_cast<raw_type*>(ret + sizeof(size_t));
+  }
+  static macro inline void free(const raw_type* p) {}
+};
+#endif /* USE_ARENA */

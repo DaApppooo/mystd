@@ -319,7 +319,7 @@ struct CustomBuffer
   mutable T* _data;
   u32 _len;
   u32 _cap;
-  static macro Self empty()
+  static macro Self init()
   { return {nullptr, 0, 0}; }
   // unintialized buffer
   static macro Self alloc(u32 cap)
@@ -373,11 +373,11 @@ struct CustomBuffer
     _len++;
     if (_len > _cap)
       grow_cap();
-    if (!ok())
+    if (!ok()) [[unlikely]]
       return *this;
     need(_cap >= _len);
     [[assume(_cap >= _len)]];
-    std::copy(addr_of(element), 1+addr_of(element), _data+_len-1);
+    std::copy(addr_of<T>(element), 1+addr_of<T>(element), _data+_len-1);
     return *this;
   }
   macro Self& extend(const View<const T>& ext);
@@ -398,9 +398,9 @@ struct CustomBuffer
   macro View<T> slice(u32 length) const;
   macro View<T> slice(u32 begin, u32 end) const;
   macro const T& operator[](const i32 index) const;
-  macro const T& operator[](const i32 index);
+  macro T& operator[](const i32 index);
   macro const T& operator[](const u32 index) const;
-  macro const T& operator[](const u32 index);
+  macro T& operator[](const u32 index);
   macro T& last() const
   { return _data[_len-1]; }
   macro T& first() const
@@ -425,13 +425,13 @@ struct CustomBuffer
   {
     const u32 grow_size = _cap/2+(_cap<2);
     _cap += grow_size;
-    _data = ::alloc<T>(_data, _cap);
+    _data = allocator::alloc(_data, _cap);
     return grow_size;
   }
   macro Self& shrink_cap(u32 new_cap)
   {
     need(new_cap <= _cap);
-    _data = ::alloc<T>(_data, new_cap);
+    _data = allocator::alloc(_data, new_cap);
     return *this;
   }
 
@@ -543,7 +543,7 @@ L Own<Self> CustomBuffer<T, allocator>::copy() const
 L Own<Self> CustomBuffer<T, allocator>::drop()
 {
   Self ret = self;
-  self = Self::empty();
+  self = Self::init();
   return ret;
 }
 
@@ -601,7 +601,7 @@ L const T& CustomBuffer<T, allocator>::operator[] (const i32 i) const
   return _data[index];
 }
 
-L const T& CustomBuffer<T, allocator>::operator[] (const i32 i)
+L T& CustomBuffer<T, allocator>::operator[] (const i32 i)
 {
   const u32 index = i < 0 ? len() + i : i;
   need(ok());
@@ -618,7 +618,7 @@ L const T& CustomBuffer<T, allocator>::operator[] (const u32 i) const
   return _data[i];
 }
 
-L const T& CustomBuffer<T, allocator>::operator[] (const u32 i)
+L T& CustomBuffer<T, allocator>::operator[] (const u32 i)
 {
   need(ok());
   need(i >= 0);
