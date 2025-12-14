@@ -104,19 +104,19 @@ LinkedRangeIterator<T> range(const T begin, T& end, const T step)
 { return {begin, end, step}; }
 
 
-template <Indexable Idxbl, class BufferUInt>
+template <Indexable It, class BufferUInt>
 struct BasicSelection
 {
   static_assert(BufferLike<BufferUInt>);
-  using Self = BasicSelection<Idxbl, BufferUInt>;
+  using Self = BasicSelection<It, BufferUInt>;
   using index_t = BufferUInt::index_t;
-  Idxbl& it;
+  It& it;
   BufferUInt indicies;
 
   struct iterator
   {
-    using value_type = typename Idxbl::indexed_type;
-    Idxbl& it;
+    using value_type = typename It::indexed_type;
+    It& it;
     u32* pt;
 
     // for comparison, same iterable is assumed
@@ -142,13 +142,15 @@ struct BasicSelection
     { return it[pt[idx]]; }
   };
 
-  static macro Self from(Idxbl& idxbl)
+  static macro Self from(It& idxbl)
   { return { idxbl, BufferUInt::empty() }; }
 
   // O(n) relative to It
   macro Self& all()
+    requires Sized<It>
   {
-    for ()
+    indicies.destroy();
+    indicies = BufferUInt::from(range(size(it)));
   }
   
 };
@@ -160,25 +162,27 @@ template <class T>
 template <class Self_>
   requires std::same_as<Self_, View<T>>
 macro Selection<const View<T>> View<T>::sel() const
-{ return { *this, HeapBuffer<u32>::empty() }; }
+{ return { *this, HeapBuffer<u32>::init() }; }
 
 template <class T>
 template <class Self_>
   requires std::same_as<Self_, View<T>>
 macro Selection<View<T>> View<T>::sel()
-{ return { *this, HeapBuffer<u32>::empty() }; }
+{ return { *this, HeapBuffer<u32>::init() }; }
 
-template <class T>
+template <class T, Allocator<T> allocator>
 template <class Self_>
-  requires std::same_as<Self_, HeapBuffer<T>>
-macro Selection<const HeapBuffer<T>> HeapBuffer<T>::sel() const
-{ return { *this, HeapBuffer<u32>::empty() }; }
+  requires std::same_as<Self_, CustomBuffer<T, allocator>>
+macro Selection<const CustomBuffer<T, allocator>>
+  CustomBuffer<T, allocator>::sel() const
+{ return { *this, HeapBuffer<u32>::init() }; }
 
-template <class T>
+template <class T, Allocator<T> allocator>
 template <class Self_>
-  requires std::same_as<Self_, HeapBuffer<T>>
-macro Selection<HeapBuffer<T>> HeapBuffer<T>::sel()
-{ return { *this, HeapBuffer<u32>::empty() }; }
+  requires std::same_as<Self_, CustomBuffer<T, allocator>>
+macro Selection<CustomBuffer<T, allocator>>
+  CustomBuffer<T, allocator>::sel()
+{ return { *this, HeapBuffer<u32>::init() }; }
 
 
 #endif

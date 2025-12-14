@@ -2,6 +2,9 @@
 #define H_QUEUE
 #include "allocator.hpp"
 #include "buffer.hpp"
+#include <algorithm>
+#include <cstdint>
+#include <sstream>
 
 template <
   class T,
@@ -97,27 +100,82 @@ struct Queue
 
   // _b._len is useless, so use it to represent front index
   macro u32& _f() { return _b._len; }
+  macro u32 first_index() const { return _f(); }
+  macro u32 last_index() const { return _l; }
+
+  macro std::string format()
+  {
+    using namespace std;
+    stringstream s;
+    u32 _f_p = 0;
+    u32 _l_p = 0;
+    u32 i;
+    if (_l <= _f())
+    {
+      if (_b._cap > 0)
+        s << _b._data[0];
+      for (i = 1; i < _b._cap; i++)
+      {
+        if (i == _l)
+          _l_p = u32(s.tellp()) + 2U;
+        if (i == _f())
+          _f_p = u32(s.tellp()) + 2U;
+        s << ", " << _b._data[i];
+      }
+    }
+    else
+    {
+      if (_l - _f() > 0)
+        s << _b._data[_f()];
+      for (i = _f()+1; i < _l; i++)
+      {
+        if (i == _l)
+          _l_p = u32(s.tellp()) + 2U;
+        if (i == _f())
+          _f_p = u32(s.tellp()) + 2U;
+        s << ", " << _b._data[i];
+      }
+    }
+    if (i == _l || i == _b._cap)
+      _l_p = u32(s.tellp()) + 2U;
+    const u32 _min = std::min(_l_p, _f_p);
+    const u32 _max = std::max(_l_p, _f_p);
+    s << '\n';
+    for (i = 0; i < _min; i++)
+      s << ' ';
+    if (_min == _f_p)
+    { s << 'F'; _f_p = UINT32_MAX; }
+    else
+      s << 'L';
+    for (i = _min+1; i < _max; i++)
+      s << ' ';
+    if (_max == _l_p)
+      s << 'L';
+    else
+      s << 'F';
+    return s.str();
+  }
 
   macro void _grow()
   {
     T* const prev_end = _b._data + _b._cap;
     const u32 added_cap = _b.grow_cap();
     [[assume(added_cap > 0)]];
+    _empty_bit = 0;
     if (_f() == 0) [[unlikely]]
     { _l = _b._cap - added_cap; return; }
     T* const cpy_begin = _b._data+_f();
     std::copy(cpy_begin, prev_end, cpy_begin+added_cap);
     _f() += added_cap;
-    _empty_bit = 0;
   }
 
   macro Self& push(const Own<T> val)
   {
+    _l = _l == _b._cap ? 0 : _l;    
     if (_f() == _l && !_empty_bit)
       _grow();
     std::copy(&val, 1+&val, _b._data+_l);
     ++_l;
-    _l = _l == _b._cap ? 0 : _l;
     _empty_bit = 0;
     return *this;
   }

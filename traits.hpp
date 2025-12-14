@@ -48,7 +48,7 @@ macro const T& val_of(const RVal<T> auto val)
     return val;
 }
 template <class T>
-macro const T* addr_of(const RVal<T> auto val)
+macro const T* addr_of(const RVal<T> auto& val)
 {
   if macro(std::is_pointer_v<decltype(val)>)
     return val;

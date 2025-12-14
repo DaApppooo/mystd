@@ -11,7 +11,7 @@
 #include <cstring>
 #include <format>
 #include <iterator>
-#include <sstream>
+#include "format.hpp"
 
 
 trait BufferLike =
@@ -30,6 +30,8 @@ using Selection = BasicSelection<It, CustomBuffer<u32, CAllocator<u32>>>;
 template <class T>
 using HeapBuffer = CustomBuffer<T, CAllocator<T>>;
 
+// No owned pointer, just a reference.
+// Use Span instead if the pointer is owned.
 template <class T>
 struct View
 {
@@ -37,7 +39,7 @@ struct View
   using iterator = T*;
   using indexed_type = T;
   using index_t = i32;
-  T* _begin;
+  Ref<T*> _begin;
   u32 _len;
   macro View() = default;
   macro View(const View<T>&) = default;
@@ -64,6 +66,12 @@ struct View
   { return {nullptr, 0U}; }
   static macro View<T> null()
   { return empty(); }
+  macro void destroy()
+  {
+    if macro(Destroyable<T>)
+      for (T& t : *this)
+        t.destroy();
+  }
   macro View<typename std::remove_const<T>::type> to_mut() const
   { return { (typename std::remove_const<T>::type*)_begin, _len }; }
   macro View<const T> to_const() const
@@ -114,8 +122,23 @@ struct View
   { return View<T>::range(_begin+start, end-start); }
   macro View<T>& shorten(u32 diff)
   { _len -= diff; return *this; }
-  constexpr HeapBuffer<View<T>> split(const T& item) const;
-  constexpr HeapBuffer<T> alloc() const;
+  macro HeapBuffer<View<T>> split(const T& item) const;
+  macro HeapBuffer<T> alloc() const;
+  macro operator FormatView<char> ()
+    requires std::same_as<T, char>
+  { return { _begin, _begin+_len }; }
+  macro operator FormatView<char16_t> ()
+    requires std::same_as<T, char16_t>
+  { return { _begin, _begin+_len }; }
+  macro operator FormatView<char32_t> ()
+    requires std::same_as<T, char32_t>
+  { return { _begin, _begin+_len }; }
+  macro operator FormatView<wchar_t> ()
+    requires std::same_as<T, wchar_t>
+  { return { _begin, _begin+_len }; }
+  macro FormatView<char, CAllocator<char>> format() const
+    requires Formattable<T>;
+  macro FormatView<char, CAllocator<char>> debug() const;
 
   // serde
   serde::Result serialize(serde::SerCallback cb, void* data) const;
@@ -512,7 +535,7 @@ L Self& CustomBuffer<T, allocator>::realloc()
   }
   std::copy(_data, _data+_len, new_p);
   _cap = len();
-  free(_data);
+  allocator::free(_data);
   _data = new_p;
   return self;
 }
@@ -521,7 +544,7 @@ L void CustomBuffer<T, allocator>::destroy()
 {
   if (_data)
   {
-    free(_data);
+    allocator::free(_data);
     _data = nullptr;
     _cap = _len = 0;
   }
@@ -530,7 +553,7 @@ L void CustomBuffer<T, allocator>::destroy() const
 {
   if (_data)
   {
-    free(_data);
+    allocator::free(_data);
     _data = nullptr;
   }
 }
@@ -762,34 +785,35 @@ Opt<Self_> StackBuffer<T, _cap>::deserialize(
 
 // formatting stuff
 template <class T>
-struct std::formatter<const View<const T>, char>
+macro FormatView<char, CAllocator<char>> View<T>::format() const
+  requires Formattable<T>
 {
-  template <class ParseContext>
-  macro ParseContext::iterator parse(ParseContext& ctx)
+  FormatView<char, CAllocator<char>> ret;
+  if (len() == 0)
   {
-    return ctx.end();
+    const char* const s = "[]";
+    ret.begin() = CAllocator<char>::alloc(2);
+    std::copy(s, s+2, ret.begin());
+    ret.end() = ret.begin() + 2;
   }
-
-  template<class FmtContext>
-  macro FmtContext::iterator format(HeapBuffer<T> l, FmtContext& ctx) const
+  else
   {
-    std::ostringstream out;
-    if (l.len() == 0)
+    mut s = HeapBuffer<char>::init();
+    s.push('[');
+    let fmt1 = std::format("{}", _begin[0]);
+    s.extend(View<const char>::range(fmt1.data(), fmt1.size()));
+    for (const T& o : slice(1, len()))
     {
-      out << "[]";
+      s.extend(View<const char>::range(", ", 2));
+      let fmt2 = std::format("{}", o);
+      s.extend(View<const char>::range(fmt2.data(), fmt2.size()));
     }
-    else
-    {
-      out << '[' << std::format("{}", l[0]);
-      for (const T& o : l.slice(1,l.len()))
-      {
-        out << ", " << std::format("{}", o);
-      }
-      out << ']';
-    }
-    return std::ranges::copy(std::move(out).str(), ctx.out()).out;
+    s.push(']');
+    ret.begin() = &s.first();
+    ret.end() = &s.last();
   }
-};
+  return ret;
+}
 
 template <class T>
 constexpr HeapBuffer<View<T>> View<T>::split(const T& item) const
@@ -823,5 +847,3 @@ constexpr HeapBuffer<T> View<T>::alloc() const
 #undef L
 
 #endif
-
-

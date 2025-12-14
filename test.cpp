@@ -1,26 +1,15 @@
-#include "defer.hpp"
-#include "queue.hpp"
+#include "list.hpp"
 #define USE_ARENA
 #include "allocator.hpp"
+#include "iters.hpp"
 
 mod arena { arena::Arena current; }
 
 int main()
 {
-  mut a = arena::push(256);
-  mut q = Queue<i32, ArenaAllocator>::init();
-  defer [&q]{q.destroy();}; // <-- useless
-  println("{}", (void*)arena::current._p);
-  q.push(5);
-  println("{}", (void*)arena::current._p);
-  q.push(6);
-  println("{}", (void*)arena::current._p);
-  q.push(7);
-  println("{}", (void*)arena::current._p);
-  for (i32 i : q)
-    println("EE: {}", i);
-  arena::pop(a);
-  puts("Done !");
+  mut l = List<i32>::from(range(10));
+  println("{}", l.to_view());
+  l.destroy();
 }
 
 

@@ -32,6 +32,19 @@ template <class T, template <class T_sub> class freetype_allocator>
 using const_allocator_of = freetype_allocator<const T>;
 
 template <class T>
+struct VoidAllocator
+{
+  using raw_type = std::remove_all_extents_t<T>;
+  using value_type = raw_type;
+  static macro raw_type* alloc(size_t s)
+  { return nullptr; }
+  static macro raw_type* alloc(raw_type* p, size_t s)
+  { return nullptr; }
+  static macro void free(const raw_type* p)
+  { }
+};
+
+template <class T>
 struct CAllocator
 {
   using raw_type = std::remove_all_extents_t<T>;
@@ -166,6 +179,7 @@ macro ptrdiff_t operator -
 #endif
 
 #ifdef USE_ARENA
+#undef USE_ARENA
 mod arena
 {
 struct Arena
@@ -197,8 +211,6 @@ macro Ref<Arena> push(u32 cap)
 template <Allocator<u8> allocator = CAllocator<u8>>
 macro void pop(Ref<Arena> arena)
 { current.destroy<allocator>(); current = arena; }
-
-
 }
 
 template <class T>
