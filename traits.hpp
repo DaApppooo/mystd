@@ -59,13 +59,18 @@ macro const T* addr_of(const RVal<T> auto& val)
 // gives ownership to the output value
 // and resets self to the init state
 // (grossly equivalent to a rust move)
-trait NonPrimDropable = requires (T g)
-{ { g.drop() } -> std::same_as<Own<T>>; };
-trait Dropable =
-  Primitive<T>
-  || NonPrimDropable<T>;
-trait Destroyable = requires (const T d)
-{ d.destroy(); };
+trait Dropable = requires (T g)
+{ { g.drop() }; };
+trait _StdMoveable = requires (T& obj)
+  { { std::move(obj) }; }
+&& !std::is_trivially_move_constructible_v<T>
+&& !std::is_trivially_move_assignable_v<T>;
+trait _ImplMove = requires (T& obj)
+{ { obj.move() } -> std::same_as<Own<T>>; };
+trait Moveable =
+   _StdMoveable<T>
+|| _ImplMove<T>
+|| Primitive<T>;
 trait Copiable =
    Primitive<T>
 || requires (const T& d)
@@ -86,6 +91,9 @@ inline macro size_t size(const Ref<S>& c)
     return c.len();
 }
 
+template <Dropable D>
+inline macro void drop(Own<D>& d) { d.drop(); }
+
 template <Copiable C>
 inline macro Own<C> copy(const Ref<C>& c)
 {
@@ -96,10 +104,10 @@ inline macro Own<C> copy(const Ref<C>& c)
 }
 
 template <Dropable T>
-inline macro Own<T> drop(Own<T>& o)
+inline macro Own<T> move(Own<T>& o)
 {
-  if macro(NonPrimDropable<T>)
-    return o.drop();
+  if macro(Moveable<T>)
+    return o.move();
   else
     return o;
 }

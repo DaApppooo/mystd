@@ -66,11 +66,11 @@ struct View
   { return {nullptr, 0U}; }
   static macro View<T> null()
   { return empty(); }
-  macro void destroy()
+  macro void drop()
   {
-    if macro(Destroyable<T>)
+    if macro(Dropable<T>)
       for (T& t : *this)
-        t.destroy();
+        t.drop();
   }
   macro View<typename std::remove_const<T>::type> to_mut() const
   { return { (typename std::remove_const<T>::type*)_begin, _len }; }
@@ -300,6 +300,22 @@ struct StackBuffer
     need(i >= 0);
     return _data[index];
   }
+  macro const T& operator[](const u32 i) const
+  {
+    need(i < _len);
+    need(i >= 0);
+    return _data[index];
+  }
+  macro T& operator[](const u32 i)
+  {
+    need(i < _len);
+    need(i >= 0);
+    return _data[index];
+  }
+  macro View<const T> operator [] (const u32 a, const u32 b) const
+  { return View<const T>::from(_data+a).to(_data+b); }
+  macro View<T> operator [] (const u32 a, const u32 b)
+  { return View<T>::from(_data+a).to(_data+b); }
   macro T& last() const
   { return _data[_len-1]; }
   macro T& first() const
@@ -312,6 +328,7 @@ struct StackBuffer
   { return to_view().begin(); }
   macro T* end()
   { return to_view().end(); }
+  macro void drop() const { if macro(Dropable<T>) }
 
   macro T* data() const { return _data; }
   macro u32 len() const { return _len; }
@@ -410,10 +427,10 @@ struct CustomBuffer
   macro Own<T> pop();
   macro Self& add_cap(u32 size);
   macro Self& realloc();
-  macro void destroy();
-  macro void destroy() const;
+  macro void drop();
+  macro void drop() const;
   macro Own<Self> copy() const;
-  macro Own<Self> drop();
+  macro Own<Self> move();
   macro Self& rm(i32 index);
   macro Self& rm(u32 begin, u32 end);
   macro View<T> to_view() const;
@@ -424,6 +441,8 @@ struct CustomBuffer
   macro T& operator[](const i32 index);
   macro const T& operator[](const u32 index) const;
   macro T& operator[](const u32 index);
+  macro View<const T> operator[](const u32 a, const u32 b) const;
+  macro View<T> operator[](const u32 a, const u32 b);
   macro T& last() const
   { return _data[_len-1]; }
   macro T& first() const
@@ -529,7 +548,7 @@ L Self& CustomBuffer<T, allocator>::realloc()
   let new_p = alloc<T>(len());
   if (!new_p)
   {
-    destroy();
+    drop();
     _cap = 1; // set to !ok()
     return self;
   }
@@ -540,7 +559,7 @@ L Self& CustomBuffer<T, allocator>::realloc()
   return self;
 }
 
-L void CustomBuffer<T, allocator>::destroy()
+L void CustomBuffer<T, allocator>::drop()
 {
   if (_data)
   {
@@ -549,7 +568,7 @@ L void CustomBuffer<T, allocator>::destroy()
     _cap = _len = 0;
   }
 }
-L void CustomBuffer<T, allocator>::destroy() const
+L void CustomBuffer<T, allocator>::drop() const
 {
   if (_data)
   {
@@ -563,7 +582,7 @@ L Own<Self> CustomBuffer<T, allocator>::copy() const
   return Self::from(to_view());
 }
 
-L Own<Self> CustomBuffer<T, allocator>::drop()
+L Own<Self> CustomBuffer<T, allocator>::move()
 {
   Self ret = self;
   self = Self::init();
@@ -574,6 +593,8 @@ L Self& CustomBuffer<T, allocator>::rm(i32 idx)
 {
   need(_len > 0);
   const u32 i = idx < 0 ? len() + idx : idx;
+  if macro(Dropable<T>)
+    _data[i].drop();
   std::copy(begin()+i+1, end(), begin()+i);
   _len--;
   return self;
@@ -586,6 +607,8 @@ L Self& CustomBuffer<T, allocator>::rm(u32 begin_, u32 end_)
     return self;
   const u32 count = end_ - begin_;
   need(_len >= count);
+  if macro(Dropable<T>)
+    (*this)[begin_, end_].drop();
   std::copy(begin()+end_, end(), begin()+begin_);
   _len -= count;
   return self;

@@ -3,6 +3,7 @@
 #include "macros.hpp"
 #include "traits.hpp"
 #include <cstddef>
+#include <memory>
 #include <type_traits>
 
 /*
@@ -95,6 +96,22 @@ struct CppFixedAllocator
   static macro void free(const raw_type* p) { delete[] p; }
 };
 
+// A link is a copy of an object made undropable
+template <class T>
+struct Link
+{
+  T _obj;
+  Link(const T& obj) : _obj(obj) {}
+  macro operator T& () { return _obj; }
+  macro operator const T& () const { return _obj; }
+  macro T& get() { return _obj; }
+  macro const T& get() const { return _obj; }
+  macro T& operator * () { return _obj; }
+  macro const T& operator * () const { return _obj; }
+  macro T* operator -> () { return &_obj; }
+  macro const T* operator -> () const { return &_obj; }
+};
+
 template <class T, Allocator<T> allocator = CAllocator<T>>
 struct owned_ptr
 {
@@ -116,6 +133,8 @@ struct owned_ptr
     std::copy(val, 1+val, self.ptr);
     return self;
   }
+  static macro owned_ptr<T, allocator> steal_from(std::unique_ptr<T>& p)
+  { return { p.release() }; }
   macro owned_ptr(Own<raw_type*> const p)
     : ptr(p) {}
   macro owned_ptr(const _DefaultType&) : ptr(nullptr) {}
@@ -131,18 +150,20 @@ struct owned_ptr
         *ret = ptr->copy();
     }
   }
-  macro owned_ptr<T> drop() const
+  macro void steal(Own<raw_type*>& p) { ptr = p; p = nullptr; }
+  macro void steal(std::unique_ptr<T>& p) { ptr = p.release(); }
+  macro owned_ptr<T> move() const
   {
     owned_ptr<T> ret = ptr;
     ptr = nullptr;
     return ret;
   }
-  macro void destroy() const
+  macro void drop() const
   {
     if (ptr)
     {
-      if macro(Destroyable<T>)
-        ptr->destroy();
+      if macro(Dropable<T>)
+        ptr->drop();
       allocator::free(ptr);
       ptr = nullptr;
     }
