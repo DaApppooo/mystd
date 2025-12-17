@@ -1,4 +1,5 @@
 #pragma once
+#include "traits.hpp"
 #ifndef H_LIST
 #define H_LIST
 #include <initializer_list>
@@ -15,7 +16,7 @@ struct Span
   using indexed_type = T;
   using index_t = i32;
   using allocator = freetype_allocator<T>;
-  Own<T*> _begin;
+  mutable Own<T*> _begin;
   u32 _len;
   
   template <class U>
@@ -40,23 +41,36 @@ struct Span
   // Copy values, not source allocation
   template <Iterable It>
     requires Sized<It>
-  static macro Span<T> from(const RVal<It> auto it)
+  static macro Span<T> from(const It& it)
   {
     Span<T> self;
     self._begin = allocator::alloc(size(it));
     self._len = size(it);
-    for (u32 i = 0; i < self._len; i++)
-    {
-      self._begin[i] = it;
-    }
+    auto itr = it.begin();
+    for (u32 i = 0; i < self._len; (++i, ++itr))
+      self._begin[i] = ::copy(*itr);
   }
   macro void drop() const
   {
     if (_begin)
     {
-      
+      if macro(Dropable<T>)
+        for (T& t : *this)
+          t.drop();
       _begin = nullptr;
     }
+  }
+  macro u32 len() const { return _len; }
+  macro Self& len(u32 new_len) { _len = new_len; return *this; }
+  macro Self copy() const
+  {
+    Span<T> self;
+    self._begin = allocator::alloc(_len);
+    
+  }
+  macro Self copy(u32 new_len) const
+  {
+    
   }
 };
 

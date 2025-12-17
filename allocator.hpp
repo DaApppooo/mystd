@@ -114,6 +114,46 @@ struct BareLink
   macro const T* operator -> () const { return &_obj; }
 };
 
+// Automatically choses pass by value or by address (in a perfect world it
+// always matches the best option, but that's not how it works rn).
+template <class T>
+struct arg;
+
+template <class T>
+  requires (sizeof(T) > 32)
+struct arg<T>
+{
+  using Self = arg<T>;
+  T* const _ptr;
+  arg() = delete;
+  macro arg(const arg<T>& other) : _ptr(other._ptr) {}
+  macro operator T& () noexcept { return *_ptr; }
+  macro arg(T& other) noexcept : _ptr(&other) {}
+  macro Self& operator = (const T& other) { *_ptr = other; }
+  macro T& operator * () noexcept { return *_ptr; }
+  macro T* operator -> () { return _ptr; }
+  macro T* addr() noexcept { return _ptr; }
+  macro T& get() noexcept { return *_ptr; }
+};
+
+template <class T>
+  requires (sizeof(T) <= 32)
+struct arg<T>
+{
+  using Self = arg<T>;
+  T _val;
+  arg() = delete;
+  arg(T&& obj) = delete;
+  macro arg(const arg<T>& other) : _val(other._val) {}
+  macro operator T& () noexcept { return _val; }
+  macro arg(T& other) noexcept : _val(other) {}
+  macro Self& operator = (const T& other) { *_val = other; }
+  macro T& operator * () noexcept { return _val; }
+  macro T* operator -> () { return &_val; }
+  macro T* addr() noexcept { return &_val; }
+  macro T& get() noexcept { return _val; }
+};
+
 template <class T, Allocator<T> allocator = CAllocator<T>>
 struct owned_ptr
 {
@@ -272,3 +312,4 @@ struct ArenaAllocator
   static macro inline void free(const raw_type* p) {}
 };
 #endif /* USE_ARENA */
+

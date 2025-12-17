@@ -1,9 +1,7 @@
 #ifndef H_ALGO
 #define H_ALGO
-#include "buffer.hpp"
 #include "_algo_macros.hpp"
 #include "traits.hpp"
-#include "array.hpp"
 #include <algorithm>
 #include <iterator>
 
@@ -11,8 +9,16 @@
 
 // Same as std::memmove : UB if dst cannot contain src
 template <Iterable I1, Iterable I2> // raw copy
-macro void copy(I1 dst, I2 const& src)
+macro void clone(I1& dst, const I2& src)
 { std::copy(src.begin(), src.end(), dst.begin()); }
+template <Iterable I1, Iterable I2>
+macro void copy(I1& dst, const I2& src) // "deep" copy
+{
+  std::copy(src.begin(), src.end(), dst.begin());
+  for (auto& obj : dst)
+    if macro(Copiable<decltype(obj)>)
+      obj = obj.copy();
+}
 template <Iterable I> // fill with copies
 macro void fill(I const& dst, typename I::iterator::value_type x)
   requires Copiable<typename I::iterator::value_type>
@@ -97,59 +103,5 @@ macro It::iterator find_ordered(
   }
   return it.end();
 }
-
-template <class T>
-_ALGO_SWAP_DECL(View, T)
-template <class T>
-_ALGO_SWAP_DECL(HeapBuffer, T)
-template <class T, u32 _cap>
-_ALGO_SWAP_DECL(StackBuffer, T, _cap)
-template <class T, u32 _cap>
-_ALGO_SWAP_DECL(Array, T, _cap)
-
-template <class T>
-_ALGO_SORT_DECL(View, T)
-template <class T>
-_ALGO_SORT_DECL(HeapBuffer, T)
-template <class T, u32 _cap>
-_ALGO_SORT_DECL(StackBuffer, T, _cap)
-template <class T, u32 _cap>
-_ALGO_SORT_DECL(Array, T, _cap)
-
-template <class T>
-_ALGO_MAX_CONST_DECL(View, T, T)
-template <class T>
-_ALGO_MAX_CONST_DECL(HeapBuffer, T, T)
-template <class T, u32 _cap>
-_ALGO_MAX_CONST_DECL(StackBuffer, T, T, _cap)
-template <class T, u32 _cap>
-_ALGO_MAX_CONST_DECL(Array, T, T, _cap)
-
-template <class T>
-_ALGO_MAX_DECL(View, T, T)
-template <class T>
-_ALGO_MAX_DECL(HeapBuffer, T, T)
-template <class T, u32 _cap>
-_ALGO_MAX_DECL(StackBuffer, T, T, _cap)
-template <class T, u32 _cap>
-_ALGO_MAX_DECL(Array, T, T, _cap)
-
-template <class T>
-_ALGO_MIN_CONST_DECL(View, T, T)
-template <class T>
-_ALGO_MIN_CONST_DECL(HeapBuffer, T, T)
-template <class T, u32 _cap>
-_ALGO_MIN_CONST_DECL(StackBuffer, T, T, _cap)
-template <class T, u32 _cap>
-_ALGO_MIN_CONST_DECL(Array, T, T, _cap)
-
-template <class T>
-_ALGO_MIN_DECL(View, T, T)
-template <class T>
-_ALGO_MIN_DECL(HeapBuffer, T, T)
-template <class T, u32 _cap>
-_ALGO_MIN_DECL(StackBuffer, T, T, _cap)
-template <class T, u32 _cap>
-_ALGO_MIN_DECL(Array, T, T, _cap)
 
 #endif

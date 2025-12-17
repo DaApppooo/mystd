@@ -11,8 +11,9 @@
 #include <cstring>
 #include <format>
 #include <iterator>
+#include <memory>
+#include <vector>
 #include "format.hpp"
-
 
 trait BufferLike =
    std::random_access_iterator<typename T::iterator>
@@ -67,7 +68,11 @@ struct View
   { return {nullptr, 0U}; }
   static macro View<T> null()
   { return empty(); }
-  macro void drop()
+
+  template <class U>
+  macro U to() const;
+
+  macro void drop() const
   {
     if macro(Dropable<T>)
       for (T& t : *this)
@@ -143,9 +148,6 @@ struct View
 
   // serde
   serde::Result serialize(serde::SerCallback cb, void* data) const;
-
-  // defined in algo.hpp, all methods are in-place
-  _ALGO_INDEXABLE_IMPL
 
   // defined in iters.hpp
   
@@ -346,9 +348,6 @@ struct StackBuffer
   template <class Self_ = Self>
     requires std::same_as<Self_, Self>
   static Opt<Self_> deserialize(serde::DeserCallback cb, void* data);
-
-  // defined in algo.hpp, all methods are in-place
-  _ALGO_INDEXABLE_IMPL
 };
 
 // A buffer allocated on the heap
@@ -367,6 +366,16 @@ struct CustomBuffer
   // unintialized buffer
   static macro Self alloc(u32 cap)
   { return {allocator::alloc(cap), 0, cap}; }
+  template <class StdCppAllocator>
+  static macro Self steal(std::vector<T, StdCppAllocator>& std_cpp_vec)
+  {
+    Self self;
+    self._data = std_cpp_vec.data();
+    self._len = static_cast<u32>(std_cpp_vec.size());
+    self._cap = static_cast<u32>(std_cpp_vec.capacity());
+    std::construct_at(&std_cpp_vec);
+    return self;
+  }
   static macro Self filled(const T& value, u32 size)
   {
     Self self;
@@ -411,7 +420,8 @@ struct CustomBuffer
   { return _len > _cap; }
   static macro Self null()
   { return {._data = nullptr, ._len = 1, ._cap = 0}; }
-  macro Self& push(const RVal<Own<T>> auto element)
+  template <class... Args>
+  macro Self& push(Args... args)
   {
     _len++;
     if (_len > _cap)
@@ -420,12 +430,26 @@ struct CustomBuffer
       return *this;
     need(_cap >= _len);
     [[assume(_cap >= _len)]];
-    std::copy(addr_of<T>(element), 1+addr_of<T>(element), _data+_len-1);
+    std::construct_at(_data+_len-1, args...);
     return *this;
   }
   macro Self& extend(const View<const T>& ext);
-  macro Self& insert(const T& element, i32 index);
-  macro Self& insert(const View<const T>& element, i32 index);
+  // self is moved
+  template <class U>
+    requires (sizeof(T) % sizeof(U) == 0)
+  macro Own<CustomBuffer<U, allocator>> content_as()
+  {
+    CustomBuffer<U, allocator> ret = {
+      ._data=reinterpret_cast<U*>(_data),
+      ._len=_len*sizeof(T)/sizeof(U),
+      ._cap=_cap*sizeof(T)/sizeof(U)
+    };
+    *this = Self::init();
+    return ret;
+  }
+  template <class... Args>
+  macro Self& insert(i32 index, Args... args);
+  macro Self& insert(i32 index, const View<const T>& element);
   // Return value is not destroyed !!!
   macro Own<T> pop();
   macro Self& add_cap(u32 size);
@@ -494,8 +518,6 @@ struct CustomBuffer
   template <class Self_ = Self>
     requires std::same_as<Self_, Self>
   macro Selection<Self> sel();
-  // defined in algo.hpp, all methods are in-place
-  _ALGO_INDEXABLE_IMPL
 };
 
 #define self (*this)
@@ -512,18 +534,20 @@ L Self& CustomBuffer<T, allocator>::extend(const View<const T>& v)
   return self;
 }
 
-L Self& CustomBuffer<T, allocator>::insert(const T& e, i32 idx)
+template <class T, Allocator<T> allocator>
+template <class... Args>
+macro Self& CustomBuffer<T, allocator>::insert(i32 idx, Args... args)
 {
   const u32 i = idx < 0 ? len() + idx : idx;
   grow_cap();
   if (!ok())
     return self;
   std::copy(begin()+i, end(), begin()+i+1);
-  _data[i] = e;
+  std::construct_at(_data+i, args...);
   return self;
 }
 
-L Self& CustomBuffer<T, allocator>::insert(const View<const T>& e, i32 idx)
+L Self& CustomBuffer<T, allocator>::insert(i32 idx, const View<const T>& e)
 {
   const u32 i = idx < 0 ? len() + idx : idx;
   cap(len() + e.len());
@@ -714,7 +738,7 @@ L Self& CustomBuffer<T, allocator>::len(Ref<T>* filler, u32 new_size)
 }
 
 // cool operators
-// template <class T
+// template <class T>
 
 // serde stuff
 template <class T>

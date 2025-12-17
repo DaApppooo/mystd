@@ -35,36 +35,15 @@ trait Primitive =
 || std::is_pointer_v<T>
 || std::same_as<T, std::nullptr_t>;
 
-template <class T, class U>
-concept RVal =
-   std::convertible_to<T, U>
-|| std::convertible_to<T, const U*>;
-template <class T>
-macro const T& val_of(const RVal<T> auto val)
-{
-  if macro(std::is_pointer_v<decltype(val)>)
-    return *val;
-  else
-    return val;
-}
-template <class T>
-macro const T* addr_of(const RVal<T> auto& val)
-{
-  if macro(std::is_pointer_v<decltype(val)>)
-    return val;
-  else
-    return &val;
-}
-
-// gives ownership to the output value
-// and resets self to the init state
-// (grossly equivalent to a rust move)
 trait Dropable = requires (T g)
 { { g.drop() }; };
 trait _StdMoveable = requires (T& obj)
   { { std::move(obj) }; }
 && !std::is_trivially_move_constructible_v<T>
 && !std::is_trivially_move_assignable_v<T>;
+// gives ownership to the output value
+// and resets self to the init state
+// (grossly equivalent to a rust move)
 trait _ImplMove = requires (T& obj)
 { { obj.move() } -> std::same_as<Own<T>>; };
 trait Moveable =
@@ -95,14 +74,13 @@ template <Dropable D>
 inline macro void drop(Own<D>& d) { d.drop(); }
 
 template <class C>
-inline macro Own<C> copy(const RVal<C> auto c)
+inline macro Own<C> copy(const C& c)
 {
   if macro(Copiable<C>)
-    return val_of(c).copy();
+    return c.copy();
   else
-    return val_of(c);
+    return c;
 }
-
 
 template <Dropable T>
 inline macro Own<T> move(Own<T>& o)

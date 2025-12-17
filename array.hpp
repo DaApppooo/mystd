@@ -12,6 +12,7 @@ struct Array
   using Self = Array<T, size>;
   using indexed_type = T;
   using index_t = i32;
+  using iterator = T*;
   using cpp_std = std::array<T, size>;
   T _data[size];
 
@@ -53,13 +54,16 @@ struct Array
   { return View<T>::range(_data, std::min(size, length)); }
   macro View<T> slice(u32 length)
   { return View<T>::range(_data, std::min(size, length)); }
-  macro View<T> slice(u32 begin, u32 end) const;
+  macro View<const T> slice(u32 begin, u32 end) const;
+  macro View<T> slice(u32 begin, u32 end);
   macro const T& operator[](const i32 index) const;
   macro T& operator[](const i32 index);
   macro const T& operator[](const u32 index) const;
   macro T& operator[](const u32 index);
-  macro const T& operator[](const u32 a, const u32 b) const;
-  macro T& operator[](const u32 a, const u32 );
+  macro const T& operator[](const u32 a, const u32 b) const
+  { return slice(a, b); }
+  macro T& operator[](const u32 a, const u32 b)
+  { return slice(a, b); }
   macro T& last() const
   { return _data[size-1]; }
   macro T& first() const
@@ -89,13 +93,18 @@ struct Array
   serde::Result serialize(serde::SerCallback cb, void* data) const
   { return cb(_data, size*sizeof(T), data); }
   static Opt<Self> deserialize(serde::DeserCallback cb, void* data);
-
-  // defined in algo.hpp
-  _ALGO_INDEXABLE_IMPL
 };
 
 template <class T, u32 size>
-macro View<T> Array<T, size>::slice(u32 begin, u32 end) const
+macro View<const T> Array<T, size>::slice(u32 begin, u32 end) const
+{
+  assert(end <= size);
+  assert(begin <= end);
+  return View<T>::range(_data+begin, end-begin);
+}
+
+template <class T, u32 size>
+macro View<T> Array<T, size>::slice(u32 begin, u32 end)
 {
   assert(end <= size);
   assert(begin <= end);
@@ -114,6 +123,21 @@ template <class T, u32 size>
 macro T& Array<T, size>::operator[](const i32 i)
 {
   const u32 index = i < 0 ? len() + i : i;
+  assert(index >= 0);
+  assert(index < len());
+  return _data[index];
+}
+
+template <class T, u32 size>
+macro const T& Array<T, size>::operator[](const u32 index) const
+{
+  assert(index >= 0);
+  assert(index < len());
+  return _data[index];
+}
+template <class T, u32 size>
+macro T& Array<T, size>::operator[](const u32 index)
+{
   assert(index >= 0);
   assert(index < len());
   return _data[index];
