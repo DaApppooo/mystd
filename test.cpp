@@ -6,8 +6,7 @@ mod arena { arena::Arena current; }
 
 int main()
 {
-  Link<i32> i = 5;
-  i.get() += 10;
+
 }
 
 

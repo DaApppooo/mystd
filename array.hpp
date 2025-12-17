@@ -12,6 +12,7 @@ struct Array
   using Self = Array<T, size>;
   using indexed_type = T;
   using index_t = i32;
+  using cpp_std = std::array<T, size>;
   T _data[size];
 
   static macro Self filled(T value)
@@ -41,6 +42,11 @@ struct Array
     return self;
   }
 
+  macro std::array<T, size>& as_std()
+  { return *reinterpret_cast<std::array<T, size>*>(this); }
+  macro const std::array<T, size>& as_std() const
+  { return *reinterpret_cast<const std::array<T, size>*>(this); }
+
   macro View<const T> to_view() const
   { return View<const T>::range(_data, size); }
   macro View<const T> slice(u32 length) const
@@ -50,6 +56,10 @@ struct Array
   macro View<T> slice(u32 begin, u32 end) const;
   macro const T& operator[](const i32 index) const;
   macro T& operator[](const i32 index);
+  macro const T& operator[](const u32 index) const;
+  macro T& operator[](const u32 index);
+  macro const T& operator[](const u32 a, const u32 b) const;
+  macro T& operator[](const u32 a, const u32 );
   macro T& last() const
   { return _data[size-1]; }
   macro T& first() const
@@ -69,11 +79,11 @@ struct Array
   macro bool is_empty() const
   { return size == 0; }
 
-  macro void destroy()
+  macro void drop()
   {
-    if macro(Destroyable<T>)
+    if macro(Dropable<T>)
       for (T& obj : *this)
-        obj.destroy();
+        obj.drop();
   }
 
   serde::Result serialize(serde::SerCallback cb, void* data) const
@@ -119,5 +129,6 @@ Opt<Array<T, size>> Array<T, size>::deserialize(
     return serde::FAILURE;
   return buff;
 }
+
 
 #endif

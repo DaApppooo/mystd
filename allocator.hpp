@@ -98,10 +98,12 @@ struct CppFixedAllocator
 
 // A link is a copy of an object made undropable
 template <class T>
-struct Link
+struct BareLink
 {
   T _obj;
-  Link(const T& obj) : _obj(obj) {}
+  BareLink(const T& obj) : _obj(obj) {}
+  macro BareLink<T> copy() const { return { _obj.copy() }; }
+  macro Own<T> copy_inner() const { return _obj.copy(); }
   macro operator T& () { return _obj; }
   macro operator const T& () const { return _obj; }
   macro T& get() { return _obj; }
