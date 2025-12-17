@@ -100,7 +100,7 @@ struct CppFixedAllocator
 template <class T>
 struct BareLink
 {
-  T _obj;
+  Ref<T> _obj;
   BareLink(const T& obj) : _obj(obj) {}
   macro BareLink<T> copy() const { return { _obj.copy() }; }
   macro Own<T> copy_inner() const { return _obj.copy(); }
@@ -121,20 +121,22 @@ struct owned_ptr
   static macro size_t arr_size = std::size<T>;
   using raw_type = std::remove_extent_t<T>;
   Own<raw_type*> mutable ptr; // intended to be accessed
-  static macro owned_ptr<T, allocator> alloc(Own<T> val)
+  static macro owned_ptr<T, allocator> make(Own<T> val)
   {
     owned_ptr<T, allocator> self;
     self.ptr = allocator::alloc(sizeof(T));
     std::copy(&val, 1+&val, self.ptr);
     return self;
   }
-  static macro owned_ptr<T, allocator> alloc(const Own<T>* val)
+  static macro owned_ptr<T, allocator> make(const Own<T>* val)
   {
     owned_ptr<T, allocator> self;
     self.ptr = allocator::alloc(sizeof(T));
     std::copy(val, 1+val, self.ptr);
     return self;
   }
+  static macro owned_ptr<T, allocator> alloc()
+  { return {allocator::alloc(sizeof(T))}; }
   static macro owned_ptr<T, allocator> steal_from(std::unique_ptr<T>& p)
   { return { p.release() }; }
   macro owned_ptr(Own<raw_type*> const p)

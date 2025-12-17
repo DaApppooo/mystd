@@ -85,24 +85,46 @@ struct LinkedRangeIterator
 };
 
 template <std::integral T = i32>
-FixedRangeIterator<T> range(T&& count)
+macro FixedRangeIterator<T> range(T&& count)
 { return {0, count, 1}; }
 template <std::integral T = i32>
-FixedRangeIterator<T> range(const T begin, T&& end)
+macro FixedRangeIterator<T> range(const T begin, T&& end)
 { return {begin, end, 1}; }
 template <std::integral T = i32>
-FixedRangeIterator<T> range(const T begin, T&& end, const T step)
+macro FixedRangeIterator<T> range(const T begin, T&& end, const T step)
 { return {begin, end, step}; }
 template <std::integral T = i32>
-LinkedRangeIterator<T> range(T& count)
+macro LinkedRangeIterator<T> range(T& count)
 { return LinkedRangeIterator<T>{0, count, 1}; }
 template <std::integral T = i32>
-LinkedRangeIterator<T> range(const T begin, T& end)
+macro LinkedRangeIterator<T> range(const T begin, T& end)
 { return {begin, end, 1}; }
 template <std::integral T = i32>
-LinkedRangeIterator<T> range(const T begin, T& end, const T step)
+macro LinkedRangeIterator<T> range(const T begin, T& end, const T step)
 { return {begin, end, step}; }
 
+// python's zip
+template <Iterable... Iterables> 
+struct ZipIterable
+{
+  std::tuple<Iterables...> iterables;
+
+  struct iterator
+  {
+    ZipIterable<Iterables...>& parent;
+    std::tuple<typename Iterables::iterator...> iterators;
+    bool finished; // just a tiny bitty flag to make things so much easier
+    
+    
+  };
+  
+};
+
+template <Iterable... Its>
+macro ZipIterable<Its...> zip(Its&... its)
+{
+  
+}
 
 template <Indexable It, class BufferUInt>
 struct BasicSelection

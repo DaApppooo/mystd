@@ -94,14 +94,15 @@ inline macro size_t size(const Ref<S>& c)
 template <Dropable D>
 inline macro void drop(Own<D>& d) { d.drop(); }
 
-template <Copiable C>
-inline macro Own<C> copy(const Ref<C>& c)
+template <class C>
+inline macro Own<C> copy(const RVal<C> auto c)
 {
-  if macro(Primitive<C>)
-    return c;
+  if macro(Copiable<C>)
+    return val_of(c).copy();
   else
-    return c.copy();
+    return val_of(c);
 }
+
 
 template <Dropable T>
 inline macro Own<T> move(Own<T>& o)

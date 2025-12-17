@@ -93,11 +93,11 @@ struct Opt
   macro operator bool () const
   { return !is_null(); }
 
-  macro void destroy()
+  macro void drop()
+    requires Dropable<T>
   {
-    if macro(Destroyable<T>)
-      if (_status == SOME)
-        _obj.destroy();
+    if (_status == SOME)
+      _obj.drop();
   }
 };
 
@@ -153,11 +153,11 @@ struct Opt<T>
   macro operator bool () const
   { return !is_null(); }
 
-  macro void destroy()
+  macro void drop()
+    requires Dropable<T>
   {
-    if macro(Destroyable<T>)
-      if (!is_null())
-        _obj.destroy();
+    if (!is_null())
+      _obj.destroy();
   }
 };
 #endif // H_OPT

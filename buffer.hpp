@@ -54,13 +54,14 @@ struct View
 
   template <class U>
   static macro View<T> wrap(U& u)
-  { return {static_cast<T*>(&u), 1}; }
-  static macro View<T> range(T* start, u32 len)
+  { return {reinterpret_cast<T*>(&u), 1}; }
+  static macro View<T> range(Ref<T*> start, u32 len)
   { return {start, len}; }
-  static macro View<T> cstr(T* start) = delete;
-  static macro View<T> from(T* start)
+  static macro View<T> cstr(Ref<T*> start) = delete;
+  static macro View<T> from(Ref<T*> start)
   { return {start, 0U}; }
-  View<T> to(T* end) const
+  [[nodiscard]]
+  macro View<T> to(T* end) const
   { return {_begin, u32(end-_begin)}; }
   static macro View<T> empty()
   { return {nullptr, 0U}; }
@@ -328,7 +329,9 @@ struct StackBuffer
   { return to_view().begin(); }
   macro T* end()
   { return to_view().end(); }
-  macro void drop() const { if macro(Dropable<T>) }
+  macro void drop() const
+    requires Dropable<T>
+  { to_view().drop(); }
 
   macro T* data() const { return _data; }
   macro u32 len() const { return _len; }
@@ -709,6 +712,9 @@ L Self& CustomBuffer<T, allocator>::len(Ref<T>* filler, u32 new_size)
   _len = new_size;
   return self;
 }
+
+// cool operators
+// template <class T
 
 // serde stuff
 template <class T>
