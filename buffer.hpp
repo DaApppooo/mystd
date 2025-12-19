@@ -72,7 +72,8 @@ struct View
   template <class U>
   macro U to() const;
 
-  macro void drop() const
+  // View is NOT droppable !!! (that can cause serious issues)
+  macro void drop_inner() const
   {
     if macro(Dropable<T>)
       for (T& t : *this)
@@ -94,6 +95,10 @@ struct View
   macro const T* begin() const
   { return _begin; }
   macro const T* end() const
+  { return _begin+_len; }
+  macro const T* cbegin() const
+  { return _begin; }
+  macro const T* cend() const
   { return _begin+_len; }
   macro T& first()
   { need(_len > 0); return _begin[0]; }
@@ -285,9 +290,13 @@ struct StackBuffer
   { return View<T>::range(_data, _len); }
   macro Self& clear()
   { _len = 0; return *this; }
-  macro View<T> slice(u32 length) const
+  macro View<const T> slice(u32 length) const
+  { return View<const T>::range(_data, length); }
+  macro View<const T> slice(u32 begin, u32 end) const
+  { return View<const T>::from(_data+begin).to(_data+end); }
+  macro View<T> slice(u32 length)
   { return View<T>::range(_data, length); }
-  macro View<T> slice(u32 begin, u32 end) const
+  macro View<T> slice(u32 begin, u32 end)
   { return View<T>::from(_data+begin).to(_data+end); }
   macro const T& operator[](const i32 index) const
   {
@@ -462,14 +471,18 @@ struct CustomBuffer
   macro Self& rm(u32 begin, u32 end);
   macro View<T> to_view() const;
   macro Self& clear();
-  macro View<T> slice(u32 length) const;
-  macro View<T> slice(u32 begin, u32 end) const;
+  macro View<const T> slice(u32 length) const;
+  macro View<const T> slice(u32 begin, u32 end) const;
+  macro View<T> slice(u32 length);
+  macro View<T> slice(u32 begin, u32 end);
   macro const T& operator[](const i32 index) const;
   macro T& operator[](const i32 index);
   macro const T& operator[](const u32 index) const;
   macro T& operator[](const u32 index);
-  macro View<const T> operator[](const u32 a, const u32 b) const;
-  macro View<T> operator[](const u32 a, const u32 b);
+  macro View<const T> operator[](const u32 a, const u32 b) const
+  { return slice(a, b); }
+  macro View<T> operator[](const u32 a, const u32 b)
+  { return slice(a, b); }
   macro T& last() const
   { return _data[_len-1]; }
   macro T& first() const
@@ -652,13 +665,26 @@ L Self& CustomBuffer<T, allocator>::clear()
   return self;
 }
 
-L View<T> CustomBuffer<T, allocator>::slice(u32 length) const
+L View<const T> CustomBuffer<T, allocator>::slice(u32 length) const
+{
+  need(length <= _len);
+  return View<const T>::range(_data, length);
+}
+
+L View<const T> CustomBuffer<T, allocator>::slice(u32 begin, u32 end) const
+{
+  need(end <= _len);
+  need(begin <= end);
+  return View<const T>::range(_data+begin, end-begin);
+}
+
+L View<T> CustomBuffer<T, allocator>::slice(u32 length) 
 {
   need(length <= _len);
   return View<T>::range(_data, length);
 }
 
-L View<T> CustomBuffer<T, allocator>::slice(u32 begin, u32 end) const
+L View<T> CustomBuffer<T, allocator>::slice(u32 begin, u32 end) 
 {
   need(end <= _len);
   need(begin <= end);

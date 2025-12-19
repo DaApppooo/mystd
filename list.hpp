@@ -66,12 +66,48 @@ struct Span
   {
     Span<T> self;
     self._begin = allocator::alloc(_len);
-    
+    std::copy(_begin, _begin+_len, self._begin);
+    self._len = _len;
+    return self;
   }
   macro Self copy(u32 new_len) const
   {
-    
+    Span<T> self;
+    self._begin = allocator::alloc(new_len);
+    std::copy(_begin, _begin+std::min(_len, new_len), self._begin);
+    self._len = new_len;
+    return self;
   }
+  macro View<typename std::remove_const<T>::type> to_mut() const
+  { return { (typename std::remove_const<T>::type*)_begin, _len }; }
+  macro View<const T> to_const() const
+  { return { (const T*)_begin, _len }; }
+  template <class U>
+  macro View<U> as() const
+  { return { static_cast<U*>(_begin), _len*sizeof(T)/sizeof(U) }; }  
+  macro bool is_null() const
+  { return !_begin; }
+  macro T* begin()
+  { return _begin; }
+  macro T* end()
+  { return _begin+_len; }
+  macro const T* begin() const
+  { return _begin; }
+  macro const T* end() const
+  { return _begin+_len; }
+  macro const T* cbegin() const
+  { return _begin; }
+  macro const T* cend() const
+  { return _begin+_len; }
+  macro T& first()
+  { need(_len > 0); return _begin[0]; }
+  macro T& last()
+  { need(_len > 0); return _begin[_len-1]; }
+  macro T& first() const
+  { need(_len > 0); return _begin[0]; }
+  macro T& last() const
+  { need(_len > 0); return _begin[_len-1]; }
+
 };
 
 macro struct {

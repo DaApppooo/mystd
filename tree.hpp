@@ -39,7 +39,7 @@ Templates:
 template <class T, size_t cap>
   requires (cap > 0)
 struct StackLinTree;
-template <class T, size_t n>
+template <class T>
 struct HeapLinTree; // simple growing linear array
 template <class T, size_t n>
 struct HeapNodeFixTree;
@@ -47,6 +47,8 @@ template <class T>
 struct HeapLinDynTree;
 template <class T>
 struct HeapNodeDynTree;
+template <class T>
+struct HeapBuildTree;
 
 trait TreeNodeTrait = requires (T a)
 {
@@ -126,11 +128,11 @@ struct SparseFix1Node
   macro void rm(i32 index)
   { _children[index].destroy(); }
   // Address check. Doesn't do anything if the element isn't there.
-  macro void rm(RVal<Ref<T>> auto val)
+  macro void rm(Ref<T>& val)
   {
     for (owned_ptr<Self>& p : _children)
     {
-      if (p != use(val))
+      if (p != val)
         continue;
       p.destroy();
     }
@@ -199,6 +201,7 @@ struct SparseDyn1Node
 template <class T>
 struct LinNode
 {
+  static macro u32 NO_PARENT = UINT32_MAX;
   using Self = LinNode<T>;
   using value_type = T;
   T _val;
@@ -237,12 +240,9 @@ template <class T, size_t cap>
 struct StackLinTree
 {
   using Self = StackLinTree<T, cap>;
-  struct NodeData;
-  using node_type = NodeData&;
-  using const_node_type = const NodeData&;
-  static macro u32 NO_PARENT = UINT32_MAX;
+  using node_type = LinNode<T>;
   
-  Array<NodeData, cap> _data;
+  Array<node_type, cap> _data;
 
   static macro Self rootless() noexcept
   {
@@ -252,39 +252,39 @@ struct StackLinTree
 
   static macro Self with_root(Own<T> val) noexcept
   {
-    const NodeData temp = { val, 1, NO_PARENT };
-    return Self{Array<NodeData,cap>::from(
-      View<const NodeData>::range(&temp, 1)
+    const node_type temp = { val, 1, node_type::NO_PARENT };
+    return Self{Array<node_type,cap>::from(
+      View<const node_type>::range(&temp, 1)
     )};
   }
 
   macro bool has_root() const { return _data[0]._cc != 0; }
   macro Self& add_root(Own<T> val)
-  { need(_data.len() == 0); _data.push({val, 1, NO_PARENT}); return *this; }
-  macro const Self& add_root(Own<T> val) const
-  { need(_data.len() == 0); _data.push({val, 1, NO_PARENT}); return *this; }
+  { need(_data[0]._cc == 0);
+    _data.push({val, 1, node_type::NO_PARENT});
+    return *this; }
 
-  macro Opt<node_type> root() noexcept
+  macro Opt<node_type&> root() noexcept
   {
     if (_data.len())
       return _data[0];
     return _;
   }
-  macro Opt<const_node_type> root() const noexcept
+  macro Opt<const node_type&> root() const noexcept
   {
     if (_data.len())
       return _data[0];
     return _;
   }
 
-  macro node_type add_child(node_type parent, Own<T> val)
+  macro node_type& add_child(node_type parent, Own<T> val)
   {
     need(&parent >= _data.begin()); // implies that tree contains root
     need(&parent < _data.begin()+_data[0]._cc);
     need(_data[0]._cc < cap);
     parent._cc++;
     size_t pi = parent._parent;
-    while (pi != NO_PARENT)
+    while (pi != node_type::NO_PARENT)
     {
       _data[pi]._cc++;
       pi = _data[pi]._parent;
@@ -296,62 +296,39 @@ struct StackLinTree
       _data.data()+_data[0]._cc-1,
       _data.data()+index+1
     );
-    _data[index] = NodeData{val, 1, u32(parent_index)};
+    _data[index] = node_type{val, 1, u32(parent_index)};
     return _data[index];
   }
 
   // destroys the child and remove any grand-child
-  macro void rm(const_node_type node) = delete; // TODO
-  // {
-  //   need(&node >= _data.begin()); // implies that tree contains root
-  //   need(&node < _data.begin()+_data[0]._cc);
-  //   const size_t index = &node - _data.begin();
-  //   if macro(Destroyable<T>)
-  //   {
-  //     while (node._cc > 1)
-  //     {
-  //       u32 pi = index+1;
-  //       while (_data[pi]._cc > 1)
-  //       {
-  //         _data[pi]._cc--;
-  //         pi++;
-  //       }
-  //       _data[pi]._val.destroy();
-  //       node._cc--;
-  //       // std::copy(
-  //       //   // _data.data() + pi + 1,
-  //       //   // _data.data() + _data[0].
-  //       // );
-  //     }
-  //   }
-  // }
+  macro void rm(const node_type& node) = delete; // TODO
 
-  macro Opt<node_type> parent(const_node_type child)
+  macro Opt<node_type&> parent(const node_type& child)
   {
     need(&child >= _data.begin());
     need(&child < _data.end());
-    if (child._parent == NO_PARENT)
+    if (child._parent == node_type::NO_PARENT)
       return _;
     return _data[child._parent];
   }
-  macro Opt<const_node_type> parent(const_node_type child) const
+  macro Opt<const node_type&> parent(const node_type& child) const
   {
     need(&child >= _data.begin());
     need(&child < _data.end());
-    if (child._parent == NO_PARENT)
+    if (child._parent == node_type::NO_PARENT)
       return _;
     return _data[child._parent];
   }
 
   struct _FixedLevelTraversal
   { // traverse from left to right one single depth level
-    NodeData* _parent;
+    node_type* _parent;
     struct iterator
     {
       using Self = iterator;
       using difference_type = std::ptrdiff_t;
       using value_type = T;
-      NodeData* p;
+      node_type* p;
       macro Self operator ++ () { p += p->_cc; return *this; }
       macro bool operator == (const Self other) const
       { return p == other.p; }
@@ -369,47 +346,60 @@ struct StackLinTree
     macro const iterator cbegin() const { return {_parent+1}; }
     macro const iterator cend() const { return {_parent+_parent->_cc}; }
   };
-  macro const _FixedLevelTraversal siblings(const_node_type node) const
-  { need(node._parent != NO_PARENT); return {_data.data()+node._parent}; }
-  macro const _FixedLevelTraversal children(const_node_type parent) const
+  macro const _FixedLevelTraversal siblings(const node_type& node) const
+  { need(node._parent != node_type::NO_PARENT);
+    return {_data.data()+node._parent}; }
+  macro const _FixedLevelTraversal children(const node_type& parent) const
   { return {&parent}; }
-  macro _FixedLevelTraversal siblings(const_node_type node)
-  { need(node._parent != NO_PARENT); return {_data.data()+node._parent}; }
-  macro _FixedLevelTraversal children(const_node_type parent)
+  macro _FixedLevelTraversal siblings(const node_type& node)
+  { need(node._parent != node_type::NO_PARENT);
+    return {_data.data()+node._parent}; }
+  macro _FixedLevelTraversal children(const node_type& parent)
   { return {&parent}; }
-
-  struct _DepthFirstTraversal
-  { // traverse from left to right one single depth level
-    NodeData* _parent;
-    struct iterator
-    {
-      using Self = iterator;
-      using difference_type = std::ptrdiff_t;
-      using value_type = T;
-      NodeData* p;
-      macro Self operator ++ () { p += p->_cc; return *this; }
-      macro bool operator == (const Self other) const
-      { return p == other.p; }
-      macro T& operator * () { return p->_val; }
-      macro const T& operator * () const { return p->_val; }
-      macro T* operator -> () { return p->_val; }
-      macro const T* operator -> () const { return p->_val; }
-      macro std::ptrdiff_t operator - (const Self other) const
-      { return p - other.p; }
-    };
-    macro iterator begin() { return {_parent+1}; }
-    macro iterator end() { return {_parent+_parent->_cc}; }
-    macro const iterator begin() const { return {_parent+1}; }
-    macro const iterator end() const { return {_parent+_parent->_cc}; }
-    macro const iterator cbegin() const { return {_parent+1}; }
-    macro const iterator cend() const { return {_parent+_parent->_cc}; }
-  };
 };
 
-template <class T, size_t n>
-struct HeapLinFixTree
+template <class T>
+struct HeapLinTree
 {
+  using Self = HeapLinTree<T>;
+  using node_type = LinNode<T>;
+
+  HeapBuffer<LinNode<T>> _data;
   
+  static macro Self rootless() noexcept
+  { return { HeapBuffer<LinNode<T>>::init() }; }
+
+  static macro Self with_root(Own<T> val) noexcept
+  {
+    Self self;
+    self._data = HeapBuffer<T>::init();
+    self._data.push(node_type{val, 1, node_type::NO_PARENT});
+  }
+
+  macro bool has_root() const { return _data.len() > 0; }
+  macro Self& add_root(Own<T> val)
+  {
+    need(_data.len() == 0);
+    _data.push({val, 1, node_type::NO_PARENT});
+    return *this;
+  }
+  macro Opt<node_type&> root()
+  {
+    if (_data.len())
+      return _data[0];
+    return _;
+  }
+  macro Opt<const node_type&> root() const
+  {
+    if (_data.len())
+      return _data[0];
+    return _;
+  }
+
+  macro node_type& add_child(node_type parent, Own<T> val)
+  {
+    
+  }
 };
 
 template <class T, size_t n>

@@ -72,6 +72,8 @@ inline macro size_t size(const Ref<S>& c)
 
 template <Dropable D>
 inline macro void drop(Own<D>& d) { d.drop(); }
+template <Dropable... D>
+inline macro void drop(Own<D>&... ds) { (drop(ds), ...); }
 
 template <class C>
 inline macro Own<C> copy(const C& c)

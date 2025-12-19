@@ -1,14 +1,16 @@
 #include "allocator.hpp"
-#include "array.hpp"
-#include "algo.hpp"
 #include "list.hpp"
-#include <vector>
+#include "iters.hpp"
 
 int main()
 {
-  std::vector<i32> a({1,2,3,4,5});
-  mut my_list = List<i32>::steal(a);
-  my_list.drop();
+  let a = List<i32>::from(range(5, 20));
+  let b = List<i32>::from(range(100, 120));
+
+  let a_s = a[1,6][1,2];
+
+
+  drop(a, b);
 }
 
 
