@@ -32,7 +32,6 @@ struct Err
   macro const T* operator -> () const { return &_t; }
 };
 
-
 template <class Ok_, class Err_>
   requires (!std::same_as<Ok_, Err_>)
 struct Result<Ok_, Err_>
@@ -215,10 +214,46 @@ struct Result<Ok_, Err_>
   { if (type == OK) return ok;
     std::cerr << msg << std::endl; need(type == OK); }
 
+  macro Own<Result<Ok_, Err_>> copy() const
+  {
+    switch (type) {
+    case OK:
+      if macro(Copiable<Ok_>)
+        return Ok(ok.copy());
+      else
+        return Ok(ok);
+      break;
+    case ERR:
+      if macro(Copiable<Err_>)
+        return Err(err.copy());
+      else
+        return Err(err);
+      break;
+    }
+  }
+  macro Own<Result<Ok_, Err_>> move()
+  {
+    switch (type) {
+    case OK:
+      if macro(Moveable<Ok_>)
+        return Ok(ok.move());
+      else
+        return Ok(ok);
+      break;
+    case ERR:
+      if macro(Moveable<Err_>)
+        return Err(err.move());
+      else
+        return Err(err);
+      break;
+    }
+  }
+
   macro void drop()
   { switch (type) {
     case OK: if macro(Dropable<Ok_>) ok.drop(); break;
     case ERR: if macro(Dropable<Err_>) err.drop(); break; } }
+
 };
 template <class Ok_, class Err_>
   requires std::same_as<Ok_, Err_>
@@ -323,7 +358,40 @@ struct Result<Ok_, Err_>
   { if (type == OK) return ok;
     std::cerr << msg << std::endl; need(type == OK); }
 
-  macro 
+  macro Own<Result<Ok_, Err_>> copy() const
+  {
+    switch (type) {
+    case OK:
+      if macro(Copiable<Ok_>)
+        return Ok(ok.copy());
+      else
+        return Ok(ok);
+      break;
+    case ERR:
+      if macro(Copiable<Err_>)
+        return Err(err.copy());
+      else
+        return Err(err);
+      break;
+    }
+  }
+  macro Own<Result<Ok_, Err_>> move()
+  {
+    switch (type) {
+    case OK:
+      if macro(Moveable<Ok_>)
+        return Ok(ok.move());
+      else
+        return Ok(ok);
+      break;
+    case ERR:
+      if macro(Moveable<Err_>)
+        return Err(err.move());
+      else
+        return Err(err);
+      break;
+    }
+  }
   
   macro void drop()
   { switch (type) {
