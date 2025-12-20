@@ -1,25 +1,13 @@
-#include "allocator.hpp"
-#include "list.hpp"
-#include "iters.hpp"
-#include "wrapper.hpp"
-#include <vector>
+#include "random.hpp"
 
-template <class T>
-struct MyVec : FromStdCPPWrapper<std::vector<T>> {};
-
+constexpr int res = random::randint(10, 20);
+u32 global_seed;
 
 int main()
 {
-  mut vec = MyVec<i32>::init();
-  let res = safe_call<i32>([&vec]{vec->push_back(5); return 1;});    
-  vec->push_back(6);
-  vec->push_back(7);
-  mut a = vec.move();
-  println("vec={}", *vec);
-  println("a={}", *a);
-  vec.drop();
-  a.drop();
-  println("Done !");
+  println("{}, {}", res,
+    214013U*detail::consteval_time_macro_to_u32(__TIME__)+2531011U
+  );
   return 0;
 }
 

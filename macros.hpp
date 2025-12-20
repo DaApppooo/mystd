@@ -1,11 +1,15 @@
 #ifndef H_MACROS
 #define H_MACROS
 #include <cassert>
-#include <cstdlib>
-#include <cassert>
 #include <print>
 #include <type_traits>
 #include "types.hpp"
+
+// avoiding include of cstdlib for the random library
+extern void* malloc(size_t);
+extern void* realloc(void*, size_t);
+extern void free(void*);
+
 
 #define let const auto
 #define mut auto
