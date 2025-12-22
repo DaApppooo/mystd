@@ -68,23 +68,24 @@ struct Result<Ok_, Err_>
   macro operator bool () const { return type == OK; }
 
   template <class T>
-  macro const T& get() const = delete;
-  template <>
-  macro const Ok_& get<Ok_>() const { need(type == OK); return ok; }
-  template <>
-  macro const Err_& get<Err_>() const { need(type == ERR); return err; }
+    requires std::same_as<T, Ok_>
+  macro const Ok_& get() const
+  { need(type == OK); return ok; }
   template <class T>
-  macro T& get() = delete;
-  template <>
-  macro Ok_& get<Ok_>() { need(type == OK); return ok; }
-  template <>
-  macro Err_& get<Err_>() { need(type == ERR); return err; }
+    requires std::same_as<T, Err_>
+  macro const Err_& get() const { need(type == ERR); return err; }
   template <class T>
-  macro bool is() const = delete;
-  template <>
-  macro bool is<Ok_>() const { return type == OK; }
-  template <>
-  macro bool is<Err_>() const { return type == ERR; }
+    requires std::same_as<T, Ok_>
+  macro Ok_& get() { need(type == OK); return ok; }
+  template <class T>
+    requires std::same_as<T, Err_>
+  macro Err_& get() { need(type == ERR); return err; }
+  template <class T>
+    requires std::same_as<T, Ok_>
+  macro bool is() const { return type == OK; }
+  template <class T>
+    requires std::same_as<T, Err_>
+  macro bool is() const { return type == ERR; }
 
   template <template <class U> class T>
     requires std::same_as<T<Ok_>, Ok<Ok_>>
@@ -255,6 +256,7 @@ struct Result<Ok_, Err_>
     case ERR: if macro(Dropable<Err_>) err.drop(); break; } }
 
 };
+
 template <class Ok_, class Err_>
   requires std::same_as<Ok_, Err_>
 struct Result<Ok_, Err_>

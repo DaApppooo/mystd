@@ -131,8 +131,10 @@ struct View
   { return _begin[index < 0 ? _len + index : index]; }
   macro View<T> operator[](u32 start, u32 end) const
   { return View<T>::range(_begin+start, end-start); }
-  macro View<T>& shorten(u32 diff)
-  { _len -= diff; return *this; }
+  macro View<T> shortened(u32 diff) const
+  { return {_begin+diff, _len-diff}; }
+  macro View<T> shortened(u32 begin_off, u32 end_off) const
+  { return {_begin+begin_off, _len-begin_off-end_off}; }
   macro HeapBuffer<View<T>> split(const T& item) const;
   macro HeapBuffer<T> alloc() const;
   macro operator FormatView<char> ()

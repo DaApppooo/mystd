@@ -93,20 +93,37 @@ struct CString
   macro Own<Char> pop();
   macro Self& add_cap(u32 size);
   macro Self& realloc();
-  macro void destroy();
-  macro void destroy() const;
   macro Own<Self> copy() const;
-  macro Own<Self> drop();
+  macro void drop() const
+  { if (_data) allocator::free(_data); _data=nullptr; }
   macro Self& rm(i32 index);
   macro Self& rm(u32 begin, u32 end);
   macro View<Char> to_view() const;
   macro Self& clear();
   macro View<Char> slice(u32 length) const;
   macro View<Char> slice(u32 begin, u32 end) const;
-  macro const Char& operator[](const i32 index) const;
-  macro Char& operator[](const i32 index);
-  macro const Char& operator[](const u32 index) const;
-  macro Char& operator[](const u32 index);
+  macro const Char& operator[](const i32 index) const
+  {
+    const u32 i = index < 0 ? index + len() : index;
+    need(i >= 0); need(i < len());
+    return _data[i];
+  }
+  macro Char& operator[](const i32 index)
+  {
+    const u32 i = index < 0 ? index + len() : index;
+    need(i >= 0); need(i < len());
+    return _data[i];
+  }
+  macro const Char& operator[](const u32 i) const
+  {
+    need(i >= 0); need(i < len());
+    return _data[i];
+  }
+  macro Char& operator[](const u32 i)
+  {
+    need(i >= 0); need(i < len());
+    return _data[i];
+  }
   macro Char& last() const
   { return _data[len()-1]; }
   macro Char& first() const
@@ -119,7 +136,8 @@ struct CString
   macro Char* data() const { return _data; }
   macro u32 len() const { return str_len_s(_data); }
   macro u32 cap() const { return _cap; }
-  macro Self& cap(u32 new_allocated_size);
+  macro Self& cap(u32 new_allocated_size)
+  { _data = allocator::alloc(_data, new_allocated_size); return *this; }
   macro Self& len(u32 new_size);
   macro Self& len(Ref<Char> fill_new_with, u32 new_size);
   macro bool is_empty() const
@@ -144,6 +162,5 @@ struct CString
     requires std::same_as<Self_, Self>
   static Opt<Self_> deserialize(serde::DeserCallback cb, void* data);  
 };
-
 
 #endif
