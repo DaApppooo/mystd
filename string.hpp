@@ -2,8 +2,11 @@
 #define H_STRING
 #include "buffer.hpp"
 
+macro size_t str_len_s(const char* s)
+{ size_t c = 0; if (!s) return c; while (*s) { c++; s++; }; return c; }
+
 template <class Char = char, Allocator<Char> allocator = CAllocator<Char>>
-  requires (!Destroyable<Char>)
+  requires (!Dropable<Char>)
 struct CString
 {
   using Self = CString<Char, allocator>;
@@ -71,14 +74,15 @@ struct CString
   macro Self& push(const Char element)
   {
     
-    _len++;
+    const u32 _len = len()+1;
     if (_len > _cap)
       grow_cap();
     if (!ok()) [[unlikely]]
       return *this;
     need(_cap >= _len);
     [[assume(_cap >= _len)]];
-    std::copy(addr_of<T>(element), 1+addr_of<T>(element), _data+_len-1);
+    _data[_len-1] = element;
+    _data[_len] = 0;
     return *this;
   }
   macro Self& extend(const View<const Char>& ext);
@@ -95,45 +99,42 @@ struct CString
   macro Own<Self> drop();
   macro Self& rm(i32 index);
   macro Self& rm(u32 begin, u32 end);
-  macro View<T> to_view() const;
+  macro View<Char> to_view() const;
   macro Self& clear();
-  macro View<T> slice(u32 length) const;
-  macro View<T> slice(u32 begin, u32 end) const;
-  macro const T& operator[](const i32 index) const;
-  macro T& operator[](const i32 index);
-  macro const T& operator[](const u32 index) const;
-  macro T& operator[](const u32 index);
-  macro T& last() const
-  { return _data[_len-1]; }
-  macro T& first() const
+  macro View<Char> slice(u32 length) const;
+  macro View<Char> slice(u32 begin, u32 end) const;
+  macro const Char& operator[](const i32 index) const;
+  macro Char& operator[](const i32 index);
+  macro const Char& operator[](const u32 index) const;
+  macro Char& operator[](const u32 index);
+  macro Char& last() const
+  { return _data[len()-1]; }
+  macro Char& first() const
   { return _data[0]; }
-  macro T* begin() const
+  macro Char* begin() const
   { return to_view().begin(); }
-  macro T* end() const
+  macro Char* end() const
   { return to_view().end(); }
 
-  macro T* data() const { return _data; }
-  macro u32 len() const { return _len; }
+  macro Char* data() const { return _data; }
+  macro u32 len() const { return str_len_s(_data); }
   macro u32 cap() const { return _cap; }
   macro Self& cap(u32 new_allocated_size);
   macro Self& len(u32 new_size);
-  macro Self& len(Ref<T> fill_new_with, u32 new_size)
-    requires Copiable<T>;
-  macro Self& len(Ref<T>* fill_new_with, u32 new_size)
-    requires Copiable<T>;
+  macro Self& len(Ref<Char> fill_new_with, u32 new_size);
   macro bool is_empty() const
-  { return _len == 0; }
+  { return len() == 0; }
   macro u32 grow_cap()
   {
     const u32 grow_size = _cap/2+(_cap<2);
     _cap += grow_size;
-    _data = allocator::alloc(_data, _cap);
+    _data = allocator::alloc(_data, _cap+1);
     return grow_size;
   }
   macro Self& shrink_cap(u32 new_cap)
   {
     need(new_cap <= _cap);
-    _data = allocator::alloc(_data, new_cap);
+    _data = allocator::alloc(_data, new_cap+1);
     return *this;
   }
 
