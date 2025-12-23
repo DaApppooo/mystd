@@ -163,4 +163,65 @@ struct CString
   static Opt<Self_> deserialize(serde::DeserCallback cb, void* data);  
 };
 
+template <class Char = char, Allocator<Char> allocator = CAllocator<Char>>
+  requires (!Dropable<Char>)
+struct String : CustomBuffer<String<Char, allocator>, Char, allocator>
+{
+  using Self = String<Char, allocator>;
+  static macro Self from(const Char* cstr)
+  {
+    Self self;
+    self._len = self._cap = static_cast<u32>(str_len_s(cstr));
+    self._data = allocator::alloc(self._len);
+    std::copy(cstr, cstr+self._len, self._data);
+  }
+};
+
+template <Allocator<char> allocator>
+macro String<char, allocator>& operator += (
+  String<char, allocator>& a,
+  const char* b
+) {
+  a.extend(View<const char>::cstr(b));
+  return a;
+}
+
+template <class Char, Allocator<Char> allocator>
+macro String<Char, allocator>& operator += (
+  String<Char, allocator>& a,
+  String<Char, allocator>& b
+) {
+  a.extend(b.to_view());
+  return a;
+}
+
+template <Allocator<char> allocator>
+macro String<char, allocator> operator + (
+  const String<char, allocator>& a,
+  const char* b
+) {
+  mut cpy = a.copy();
+  cpy.extend(View<const char>::cstr(b));
+  return cpy;
+}
+template <Allocator<char> allocator>
+macro String<char, allocator> operator + (
+  const char* a,
+  const String<char, allocator>& b
+) {
+  mut cpy = b.copy();
+  cpy.insert(0, View<const char>::cstr(a));
+  return cpy;
+}
+
+template <class Char, Allocator<Char> allocator>
+macro String<char, allocator> operator + (
+  const String<Char, allocator>& a,
+  const String<Char, allocator>& b
+) {
+  mut cpy = a.copy();
+  cpy.extend(View<const char>::cstr(b));
+  return cpy;
+}
+
 #endif

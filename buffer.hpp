@@ -22,14 +22,14 @@ trait BufferLike =
 && requires(const T x) { { x.pushable() } -> std::same_as<bool>; }
 && requires(T x, typename T::indexed_type y) { { x.push(y) }; };
 
-template <Indexable It, class BufferUInt>
+template <class It, class BufferUInt>
 struct BasicSelection;
-template <class T, Allocator<T> allocator>
+template <class Self, class T, Allocator<T> allocator>
 struct CustomBuffer;
-template <Indexable It>
-using Selection = BasicSelection<It, CustomBuffer<u32, CAllocator<u32>>>;
 template <class T>
-using HeapBuffer = CustomBuffer<T, CAllocator<T>>;
+struct HeapBuffer;
+template <class It>
+using Selection = BasicSelection<It, HeapBuffer<u32>>;
 
 // No owned pointer, just a reference.
 // Use Span instead if the pointer is owned.
@@ -362,10 +362,9 @@ struct StackBuffer
 };
 
 // A buffer allocated on the heap
-template <class T, Allocator<T> allocator = CAllocator<T>>
+template <class Self, class T, Allocator<T> allocator = CAllocator<T>>
 struct CustomBuffer
 {
-  using Self = CustomBuffer<T, allocator>;
   using iterator = T*;
   using indexed_type = T;
   using index_t = i32;
@@ -438,11 +437,11 @@ struct CustomBuffer
     if (_len > _cap)
       grow_cap();
     if (!ok()) [[unlikely]]
-      return *this;
+      return as_self();
     need(_cap >= _len);
     [[assume(_cap >= _len)]];
     std::construct_at(_data+_len-1, args...);
-    return *this;
+    return as_self();
   }
   macro Self& extend(const View<const T>& ext);
   // self is moved
@@ -493,6 +492,10 @@ struct CustomBuffer
   { return to_view().begin(); }
   macro T* end() const
   { return to_view().end(); }
+  macro Self& as_self() // TODO: use start_lifetime_as to avoid UB in C++26
+  { return *reinterpret_cast<Self*>(this); }
+  macro const Self& as_self() const
+  { return *reinterpret_cast<Self*>(this); }
 
   macro T* data() const { return _data; }
   macro u32 len() const { return _len; }
@@ -536,22 +539,21 @@ struct CustomBuffer
 };
 
 #define self (*this)
-#define Self CustomBuffer<T, allocator>
-#define L template <class T, Allocator<T> allocator> macro
+#define L template <class Self, class T, Allocator<T> allocator> macro
 
-L Self& CustomBuffer<T, allocator>::extend(const View<const T>& v)
+L Self& CustomBuffer<Self, T, allocator>::extend(const View<const T>& v)
 {
   cap(len() + v.len());
   if (!ok())
-    return self;
+    return as_self();
   std::copy(v.begin(), v.end(), _data + len());
   _len += v._len;
-  return self;
+  return as_self();
 }
 
-template <class T, Allocator<T> allocator>
+template <class Self, class T, Allocator<T> allocator>
 template <class... Args>
-macro Self& CustomBuffer<T, allocator>::insert(i32 idx, Args... args)
+macro Self& CustomBuffer<Self, T, allocator>::insert(i32 idx, Args... args)
 {
   const u32 i = idx < 0 ? len() + idx : idx;
   grow_cap();
@@ -562,7 +564,7 @@ macro Self& CustomBuffer<T, allocator>::insert(i32 idx, Args... args)
   return self;
 }
 
-L Self& CustomBuffer<T, allocator>::insert(i32 idx, const View<const T>& e)
+L Self& CustomBuffer<Self, T, allocator>::insert(i32 idx, const View<const T>& e)
 {
   const u32 i = idx < 0 ? len() + idx : idx;
   cap(len() + e.len());
@@ -573,19 +575,19 @@ L Self& CustomBuffer<T, allocator>::insert(i32 idx, const View<const T>& e)
   return self;
 }
 
-L T CustomBuffer<T, allocator>::pop()
+L T CustomBuffer<Self, T, allocator>::pop()
 {
   _len--;
   return _data[_len];
 }
 
-L Self& CustomBuffer<T, allocator>::add_cap(u32 size)
+L Self& CustomBuffer<Self, T, allocator>::add_cap(u32 size)
 {
   cap(cap()+size);
   return self;
 }
 
-L Self& CustomBuffer<T, allocator>::realloc()
+L Self& CustomBuffer<Self, T, allocator>::realloc()
 {
   let new_p = alloc<T>(len());
   if (!new_p)
@@ -601,7 +603,7 @@ L Self& CustomBuffer<T, allocator>::realloc()
   return self;
 }
 
-L void CustomBuffer<T, allocator>::drop()
+L void CustomBuffer<Self, T, allocator>::drop()
 {
   if (_data)
   {
@@ -610,7 +612,7 @@ L void CustomBuffer<T, allocator>::drop()
     _cap = _len = 0;
   }
 }
-L void CustomBuffer<T, allocator>::drop() const
+L void CustomBuffer<Self, T, allocator>::drop() const
 {
   if (_data)
   {
@@ -619,19 +621,19 @@ L void CustomBuffer<T, allocator>::drop() const
   }
 }
 
-L Own<Self> CustomBuffer<T, allocator>::copy() const
+L Own<Self> CustomBuffer<Self, T, allocator>::copy() const
 {
   return Self::from(to_view());
 }
 
-L Own<Self> CustomBuffer<T, allocator>::move()
+L Own<Self> CustomBuffer<Self, T, allocator>::move()
 {
   Self ret = self;
   self = Self::init();
   return ret;
 }
 
-L Self& CustomBuffer<T, allocator>::rm(i32 idx)
+L Self& CustomBuffer<Self, T, allocator>::rm(i32 idx)
 {
   need(_len > 0);
   const u32 i = idx < 0 ? len() + idx : idx;
@@ -639,10 +641,10 @@ L Self& CustomBuffer<T, allocator>::rm(i32 idx)
     _data[i].drop();
   std::copy(begin()+i+1, end(), begin()+i);
   _len--;
-  return self;
+  return as_self();
 }
 
-L Self& CustomBuffer<T, allocator>::rm(u32 begin_, u32 end_)
+L Self& CustomBuffer<Self, T, allocator>::rm(u32 begin_, u32 end_)
 {
   need(end_ >= begin_);
   if (end_ == begin_)
@@ -653,47 +655,47 @@ L Self& CustomBuffer<T, allocator>::rm(u32 begin_, u32 end_)
     (*this)[begin_, end_].drop();
   std::copy(begin()+end_, end(), begin()+begin_);
   _len -= count;
-  return self;
+  return as_self();
 }
 
-L View<T> CustomBuffer<T, allocator>::to_view() const
+L View<T> CustomBuffer<Self, T, allocator>::to_view() const
 {
   return View<T>::range(_data, _len);
 }
 
-L Self& CustomBuffer<T, allocator>::clear()
+L Self& CustomBuffer<Self, T, allocator>::clear()
 {
   _len = 0;
-  return self;
+  return as_self();
 }
 
-L View<const T> CustomBuffer<T, allocator>::slice(u32 length) const
+L View<const T> CustomBuffer<Self, T, allocator>::slice(u32 length) const
 {
   need(length <= _len);
   return View<const T>::range(_data, length);
 }
 
-L View<const T> CustomBuffer<T, allocator>::slice(u32 begin, u32 end) const
+L View<const T> CustomBuffer<Self, T, allocator>::slice(u32 begin, u32 end) const
 {
   need(end <= _len);
   need(begin <= end);
   return View<const T>::range(_data+begin, end-begin);
 }
 
-L View<T> CustomBuffer<T, allocator>::slice(u32 length) 
+L View<T> CustomBuffer<Self, T, allocator>::slice(u32 length) 
 {
   need(length <= _len);
   return View<T>::range(_data, length);
 }
 
-L View<T> CustomBuffer<T, allocator>::slice(u32 begin, u32 end) 
+L View<T> CustomBuffer<Self, T, allocator>::slice(u32 begin, u32 end) 
 {
   need(end <= _len);
   need(begin <= end);
   return View<T>::range(_data+begin, end-begin);
 }
 
-L const T& CustomBuffer<T, allocator>::operator[] (const i32 i) const
+L const T& CustomBuffer<Self, T, allocator>::operator[] (const i32 i) const
 {
   const u32 index = i < 0 ? len() + i : i;
   need(ok());
@@ -702,7 +704,7 @@ L const T& CustomBuffer<T, allocator>::operator[] (const i32 i) const
   return _data[index];
 }
 
-L T& CustomBuffer<T, allocator>::operator[] (const i32 i)
+L T& CustomBuffer<Self, T, allocator>::operator[] (const i32 i)
 {
   const u32 index = i < 0 ? len() + i : i;
   need(ok());
@@ -711,7 +713,7 @@ L T& CustomBuffer<T, allocator>::operator[] (const i32 i)
   return _data[index];
 }
 
-L const T& CustomBuffer<T, allocator>::operator[] (const u32 i) const
+L const T& CustomBuffer<Self, T, allocator>::operator[] (const u32 i) const
 {
   need(ok());
   need(i >= 0);
@@ -719,7 +721,7 @@ L const T& CustomBuffer<T, allocator>::operator[] (const u32 i) const
   return _data[i];
 }
 
-L T& CustomBuffer<T, allocator>::operator[] (const u32 i)
+L T& CustomBuffer<Self, T, allocator>::operator[] (const u32 i)
 {
   need(ok());
   need(i >= 0);
@@ -727,23 +729,23 @@ L T& CustomBuffer<T, allocator>::operator[] (const u32 i)
   return _data[i];
 }
 
-L Self& CustomBuffer<T, allocator>::cap(u32 new_alloc_size)
+L Self& CustomBuffer<Self, T, allocator>::cap(u32 new_alloc_size)
 {
   if (new_alloc_size < _cap)
-    return self;
+    return *reinterpret_cast<Self*>(this);
   _data = ::alloc<T>(_data, new_alloc_size);
   _cap = new_alloc_size;
-  return self;
+  return as_self();
 }
 
-L Self& CustomBuffer<T, allocator>::len(u32 new_size)
+L Self& CustomBuffer<Self, T, allocator>::len(u32 new_size)
 {
   need(_cap >= new_size);
   _len = new_size;
-  return self;
+  return as_self();
 }
 
-L Self& CustomBuffer<T, allocator>::len(Ref<T> filler, u32 new_size)
+L Self& CustomBuffer<Self, T, allocator>::len(Ref<T> filler, u32 new_size)
   requires Copiable<T>
 {
   need(_cap >= new_size);
@@ -751,10 +753,10 @@ L Self& CustomBuffer<T, allocator>::len(Ref<T> filler, u32 new_size)
     for (auto& elem : View<T>::range(end(), new_size-len()))
       elem = copy(filler);
   _len = new_size;
-  return self;
+  return as_self();
 }
 
-L Self& CustomBuffer<T, allocator>::len(Ref<T>* filler, u32 new_size)
+L Self& CustomBuffer<Self, T, allocator>::len(Ref<T>* filler, u32 new_size)
   requires Copiable<T>
 {
   need(_cap >= new_size);
@@ -762,11 +764,12 @@ L Self& CustomBuffer<T, allocator>::len(Ref<T>* filler, u32 new_size)
     for (auto& elem : View<T>::range(end(), new_size-len()))
       elem = copy(*filler);
   _len = new_size;
-  return self;
+  return as_self();
 }
 
-// cool operators
-// template <class T>
+template <class T>
+struct HeapBuffer : CustomBuffer<HeapBuffer<T>, T, CAllocator<T>>
+{};
 
 // serde stuff
 template <class T>
@@ -796,10 +799,10 @@ serde::Result View<T>::serialize(serde::SerCallback cb, void* data) const
   return serde::SUCCESS;
 }
 
-template <class T, Allocator<T> allocator>
+template <class Self, class T, Allocator<T> allocator>
 template <class Self_>
   requires std::same_as<Self_, Self>
-Opt<Self_> CustomBuffer<T, allocator>::deserialize(
+Opt<Self_> CustomBuffer<Self, T, allocator>::deserialize(
   serde::DeserCallback cb,
   void *data
 ) {
@@ -924,7 +927,6 @@ constexpr HeapBuffer<T> View<T>::alloc() const
 
 
 #undef self
-#undef Self
 #undef L
 
 #endif
