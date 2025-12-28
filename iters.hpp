@@ -126,7 +126,7 @@ macro ZipIterable<Its...> zip(Its&... its)
   
 }
 
-template <Indexable It, class BufferUInt>
+template <class It, class BufferUInt>
 struct BasicSelection
 {
   static_assert(BufferLike<BufferUInt>);
@@ -177,7 +177,7 @@ struct BasicSelection
   
 };
 
-template <Indexable T>
+template <class T>
 using Selection = BasicSelection<T, HeapBuffer<u32>>;
 
 template <class T>
@@ -192,18 +192,18 @@ template <class Self_>
 macro Selection<View<T>> View<T>::sel()
 { return { *this, HeapBuffer<u32>::init() }; }
 
-template <class T, Allocator<T> allocator>
+template <class Self, class T, Allocator<T> allocator>
 template <class Self_>
-  requires std::same_as<Self_, CustomBuffer<T, allocator>>
-macro Selection<const CustomBuffer<T, allocator>>
-  CustomBuffer<T, allocator>::sel() const
+  requires std::same_as<Self_, Self>
+macro Selection<const Self>
+  CustomBuffer<Self, T, allocator>::sel() const
 { return { *this, HeapBuffer<u32>::init() }; }
 
-template <class T, Allocator<T> allocator>
+template <class Self, class T, Allocator<T> allocator>
 template <class Self_>
-  requires std::same_as<Self_, CustomBuffer<T, allocator>>
-macro Selection<CustomBuffer<T, allocator>>
-  CustomBuffer<T, allocator>::sel()
+  requires std::same_as<Self_, Self>
+macro Selection<Self>
+  CustomBuffer<Self, T, allocator>::sel()
 { return { *this, HeapBuffer<u32>::init() }; }
 
 

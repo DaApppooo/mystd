@@ -4,18 +4,19 @@
 #include <print>
 #include <type_traits>
 #include "types.hpp"
+#include <generator>
 
 // avoiding include of cstdlib for the random library
 extern void* malloc(size_t);
 extern void* realloc(void*, size_t);
 extern void free(void*);
 
-
 #define let const auto
 #define mut auto
 #define mod namespace
 #define trait template <class T> concept
 #define macro constexpr
+#define yield co_yield
 
 #ifdef __GNUG__
 // true if compiled with the gcc toolchain
@@ -30,28 +31,6 @@ template <class T>
   requires (sizeof(T) > 8)
 macro const T* operator & (const T&& prval)
 { return &prval; }
-
-// Choose the optimal argument type based on the size of the parameter
-// and compiler options (todo) - and should in theory change based
-// on the usage of the object within the function.
-template <class T>
-struct fit;
-
-template <class T>
-  requires (sizeof(T) > 8)
-struct fit<T>
-{
-  T* _p;
-  // todo
-};
-
-template <class T>
-  requires (sizeof(T) <= 8)
-struct fit<T>
-{
-  T _p;
-  // todo
-};
 
 template <class T>
 inline macro T* alloc(u32 s)
@@ -69,6 +48,8 @@ inline void __consteval_fail() {}
 
 using std::print;
 using std::println;
+template <class T>
+using generator = std::generator<T>;
 
 static macro struct _DefaultType
 {

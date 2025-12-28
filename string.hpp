@@ -168,6 +168,7 @@ template <class Char = char, Allocator<Char> allocator = CAllocator<Char>>
 struct String : CustomBuffer<String<Char, allocator>, Char, allocator>
 {
   using Self = String<Char, allocator>;
+  using Parent = CustomBuffer<String<Char, allocator>, Char, allocator>;
   static macro Self from(const Char* cstr)
   {
     Self self;

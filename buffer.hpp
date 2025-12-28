@@ -109,6 +109,7 @@ struct View
   macro T& last() const
   { need(_len > 0); return _begin[_len-1]; }
   macro u32 len() const { return _len; }
+  macro Self& len(u32 l) { _len = l; return *this; }
   macro T& operator * () const
   { return *_begin; }
   macro T& operator * ()

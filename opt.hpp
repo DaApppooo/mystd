@@ -1,5 +1,7 @@
 #ifndef H_OPT
 #define H_OPT
+#include <cstdlib>
+#include <iostream>
 #include <type_traits>
 #include "macros.hpp"
 #include "traits.hpp"
@@ -90,6 +92,26 @@ struct Opt
     return _obj;
   }
 
+  macro T& expect(const char* msg)
+  {
+    if (is_null())
+    {
+      std::cerr << msg << std::endl;
+      need(!is_null());
+    }
+    return _obj;
+  }
+
+  macro const T& expect(const char* msg) const
+  {
+    if (is_null())
+    {
+      std::cerr << msg << std::endl;
+      need(!is_null());
+    }
+    return _obj;
+  }
+
   macro operator bool () const
   { return !is_null(); }
 
@@ -147,6 +169,26 @@ struct Opt<T>
   macro const T& get() const
   {
     need(!is_null());
+    return _obj;
+  }
+  
+  macro T& expect(const char* msg)
+  {
+    if (is_null())
+    {
+      std::cerr << msg << std::endl;
+      need(!is_null());
+    }
+    return _obj;
+  }
+
+  macro const T& expect(const char* msg) const
+  {
+    if (is_null())
+    {
+      std::cerr << msg << std::endl;
+      need(!is_null());
+    }
     return _obj;
   }
 
