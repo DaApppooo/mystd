@@ -108,7 +108,8 @@ struct View
   { need(_len > 0); return _begin[0]; }
   macro T& last() const
   { need(_len > 0); return _begin[_len-1]; }
-  macro u32 len() const { return _len; }
+  macro const u32& len() const { return _len; }
+  macro u32& len() { return _len; }
   macro T& operator * () const
   { return *_begin; }
   macro T& operator * ()
@@ -347,7 +348,8 @@ struct StackBuffer
   { to_view().drop(); }
 
   macro T* data() const { return _data; }
-  macro u32 len() const { return _len; }
+  macro const u32& len() const { return _len; }
+  macro u32& len() { return _len; }
   macro u32 cap() const { return _cap; }
   macro Self& len(u32 new_len)
   { need(new_len < _cap); _len = new_len; return *this; }
