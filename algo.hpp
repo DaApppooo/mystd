@@ -31,8 +31,8 @@ macro void fill_raw(I const& dst, typename I::iterator::value_type x)
 { std::fill(dst.begin(), dst.end(), x); }
 
 template <Iterable It, class Func>
-macro void for_each(It const& it, Func const& func)
-{ std::for_each(it.begin(), it.end(), func); }
+macro void map(It&& it, Func const& func)
+{ std::for_each(std::forward(it).begin(), std::forward(it).end(), func); }
 template <Iterable It, class Func>
 macro bool all(const It& it, Func const& func)
 { return std::all_of(it.begin(), it.end(), func); }
