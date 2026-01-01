@@ -108,7 +108,8 @@ struct View
   { need(_len > 0); return _begin[0]; }
   macro T& last() const
   { need(_len > 0); return _begin[_len-1]; }
-  macro u32 len() const { return _len; }
+  macro const u32& len() const { return _len; }
+  macro u32& len() { return _len; }
   macro Self& len(u32 l) { _len = l; return *this; }
   macro T& operator * () const
   { return *_begin; }
@@ -348,7 +349,8 @@ struct StackBuffer
   { to_view().drop(); }
 
   macro T* data() const { return _data; }
-  macro u32 len() const { return _len; }
+  macro const u32& len() const { return _len; }
+  macro u32& len() { return _len; }
   macro u32 cap() const { return _cap; }
   macro Self& len(u32 new_len)
   { need(new_len < _cap); _len = new_len; return *this; }
@@ -559,10 +561,11 @@ macro Self& CustomBuffer<Self, T, allocator>::insert(i32 idx, Args... args)
   const u32 i = idx < 0 ? len() + idx : idx;
   grow_cap();
   if (!ok())
-    return self;
+    return as_self();
   std::copy(begin()+i, end(), begin()+i+1);
   std::construct_at(_data+i, args...);
-  return self;
+  _len++;
+  return as_self();
 }
 
 L Self& CustomBuffer<Self, T, allocator>::insert(i32 idx, const View<const T>& e)
@@ -570,10 +573,11 @@ L Self& CustomBuffer<Self, T, allocator>::insert(i32 idx, const View<const T>& e
   const u32 i = idx < 0 ? len() + idx : idx;
   cap(len() + e.len());
   if (!ok())
-    return self;
+    return as_self();
   std::copy(begin()+i, end(), begin()+i+e.len());
   std::copy(e.begin(), e.end(), begin()+i);
-  return self;
+  _len += e.len();
+  return as_self();
 }
 
 L T CustomBuffer<Self, T, allocator>::pop()
@@ -585,7 +589,7 @@ L T CustomBuffer<Self, T, allocator>::pop()
 L Self& CustomBuffer<Self, T, allocator>::add_cap(u32 size)
 {
   cap(cap()+size);
-  return self;
+  return as_self();
 }
 
 L Self& CustomBuffer<Self, T, allocator>::realloc()
@@ -595,13 +599,13 @@ L Self& CustomBuffer<Self, T, allocator>::realloc()
   {
     drop();
     _cap = 1; // set to !ok()
-    return self;
+    return as_self();
   }
   std::copy(_data, _data+_len, new_p);
   _cap = len();
   allocator::free(_data);
   _data = new_p;
-  return self;
+  return as_self();
 }
 
 L void CustomBuffer<Self, T, allocator>::drop()
@@ -649,7 +653,7 @@ L Self& CustomBuffer<Self, T, allocator>::rm(u32 begin_, u32 end_)
 {
   need(end_ >= begin_);
   if (end_ == begin_)
-    return self;
+    return as_self();
   const u32 count = end_ - begin_;
   need(_len >= count);
   if macro(Dropable<T>)
