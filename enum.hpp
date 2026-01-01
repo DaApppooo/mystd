@@ -152,6 +152,15 @@ struct alignas(std::max({4UL, alignof(T)...})) Enum
       std::destroy_at((NthType<i>*)data);
     });
   }
+  macro void drop()
+  {
+    const uint32_t idx = type;
+    const char* data = _data;
+    _enum_utils::with_n<_OBJ_COUNT>(idx, [&data](auto i) {
+      if (Dropable<NthType<i>>)
+        ((NthType<i>*)data)->drop();
+    });
+  }
 
   template <class R, class... Funcs>
     requires (

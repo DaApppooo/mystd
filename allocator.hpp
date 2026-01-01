@@ -161,6 +161,14 @@ struct owned_ptr
   static macro size_t arr_size = std::size<T>;
   using raw_type = std::remove_extent_t<T>;
   Own<raw_type*> mutable ptr; // intended to be accessed
+  macro owned_ptr() = default;
+  macro owned_ptr(const owned_ptr<T, allocator>&) = default;
+  macro owned_ptr(owned_ptr<T, allocator>&&) = default;
+  macro owned_ptr<T, allocator>&
+    operator = (const owned_ptr<T, allocator>&) = default;
+  macro owned_ptr<T, allocator>&
+    operator = (owned_ptr<T, allocator>&&) = default;
+  
   static macro owned_ptr<T, allocator> make(Own<T> val)
   {
     owned_ptr<T, allocator> self;
