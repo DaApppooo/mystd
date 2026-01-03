@@ -495,10 +495,10 @@ struct CustomBuffer
   { return to_view().begin(); }
   macro T* end() const
   { return to_view().end(); }
-  macro Self& as_self() // TODO: use start_lifetime_as to avoid UB in C++26
-  { return *reinterpret_cast<Self*>(this); }
+  macro Self& as_self()
+  { return *static_cast<Self*>(this); }
   macro const Self& as_self() const
-  { return *reinterpret_cast<Self*>(this); }
+  { return *static_cast<const Self*>(this); }
 
   macro T* data() const { return _data; }
   macro u32 len() const { return _len; }
