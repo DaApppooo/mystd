@@ -44,6 +44,9 @@ inline macro T* alloc(T* p, u32 s)
     return (T*)malloc(sizeof(T)*s);
 }
 
+macro size_t str_len_s(const char* s)
+{ size_t c = 0; if (!s) return c; while (*s) { c++; s++; }; return c; }
+
 inline void __consteval_fail() {}
 
 using std::print;

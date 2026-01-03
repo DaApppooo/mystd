@@ -1,5 +1,6 @@
 #pragma once
 #include "traits.hpp"
+#include <memory>
 #ifndef H_LIST
 #define H_LIST
 #include <initializer_list>
@@ -8,40 +9,61 @@
 #include "array.hpp"
 
 template <class T, template <class U> class freetype_allocator = CAllocator>
-  requires Allocator<freetype_allocator<T>, T>
+  requires Allocator<freetype_allocator<remove_const<T>>, remove_const<T>>
 struct Span
 {
   using Self = Span<T>;
   using iterator = T*;
   using indexed_type = T;
   using index_t = i32;
-  using allocator = freetype_allocator<T>;
+  using allocator = freetype_allocator<remove_const<T>>;
   mutable Own<T*> _begin;
   u32 _len;
   
   template <class U>
-  static macro Span<T> hold(Own<U*> u)
+  static macro Self hold(Own<U*> u)
   { return {reinterpret_cast<T*>(u), 1}; }
   template <class U>
-  static macro Span<T> hold(Own<U*> u, u32 len)
+  static macro Self hold(Own<U*> u, u32 len)
   { return {reinterpret_cast<T*>(u), len}; }
-  static macro Span<T> range(Own<T*> start, u32 len)
+  static macro Self range(Own<T*> start, u32 len)
   { return {start, len}; }
-  static macro Span<T> cstr(Own<T*> start) = delete;
-  static macro Span<T> from(Own<T*> start)
+  static macro Self cstr(Own<T*> start) = delete;
+  static macro Self from(Own<T*> start)
   { return {start, 0U}; }
   [[nodiscard]]
   macro Span<T> to(Ref<T*> end)
   { Span<T> ret = { _begin, u32(end-_begin) }; _begin = nullptr; return ret; }
-  static macro Span<T> empty() { return {nullptr, 0U}; }
-  static macro Span<T> null() { return empty(); }
-  static macro Span<T> alloc(u32 count)
+  static macro Self empty() { return {nullptr, 0U}; }
+  static macro Self null() { return empty(); }
+  static macro Self alloc(u32 count)
   { return { allocator::alloc(count), count }; }
 
+  // Moves ownership out of the given iterable and into the returned span.
+  template <Iterable It>
+    requires Sized<It>
+  static macro Self steal(It& it)
+  {
+    Span<T> self;
+    self._begin = &*it.begin();
+    self._len = size(it);
+    std::construct_at(&it);
+    return self;
+  }
+  template <Iterable It>
+    requires Sized<It>
+  static macro Self steal(It&& it)
+  {
+    Span<T> self;
+    self._begin = &*it.begin();
+    self._len = size(it);
+    std::construct_at(&it);
+    return self;
+  }
   // Copy values, not source allocation
   template <Iterable It>
     requires Sized<It>
-  static macro Span<T> from(const It& it)
+  static macro Self from(const It& it)
   {
     Span<T> self;
     self._begin = allocator::alloc(size(it));
@@ -108,6 +130,59 @@ struct Span
   macro T& last() const
   { need(_len > 0); return _begin[_len-1]; }
 
+  macro const T& operator * () const
+  { return *_begin; }
+  macro T& operator * ()
+  { return *_begin; }
+  macro Span<T>& operator ++ ()
+  { _begin++; _len--; return *this; }
+  macro Span<T>& operator -- ()
+  { _begin--; _len++; return *this; }
+  macro bool operator == (const Span<T> o) const
+  { return to_view() == o.to_view(); }
+  macro View<T> to_view() { return View<T>::range(_begin, _len); }
+  macro View<const T> to_view() const
+  { return View<const T>::range(_begin, _len); }
+  macro const T& operator[](index_t index) const
+  { return _begin[index < 0 ? _len + index : index]; }
+  macro T& operator[](index_t index)
+  { return _begin[index < 0 ? _len + index : index]; }
+  macro const T& operator[](u32 index) const
+  { return _begin[index]; }
+  macro T& operator[](u32 index)
+  { return _begin[index]; }
+  macro View<const T> operator[](u32 start, u32 end) const
+  { return View<const T>::range(_begin+start, end-start); }
+  macro View<T> operator[](u32 start, u32 end)
+  { return View<T>::range(_begin+start, end-start); }
+  macro View<T> shortened(u32 diff) const
+  { return {_begin+diff, _len-diff}; }
+  macro View<T> shortened(u32 begin_off, u32 end_off) const
+  { return {_begin+begin_off, _len-begin_off-end_off}; }
+  
+  macro operator FormatView<const char, freetype_allocator<char>> () const
+    requires std::same_as<remove_const<T>, char>
+  { return { _begin, _begin+_len }; }
+  macro operator FormatView<const char16_t, freetype_allocator<char16_t>> () const
+    requires std::same_as<remove_const<T>, char16_t>
+  { return { _begin, _begin+_len }; }
+  macro operator FormatView<const char32_t, freetype_allocator<char32_t>> () const
+    requires std::same_as<remove_const<T>, char32_t>
+  { return { _begin, _begin+_len }; }
+  macro operator FormatView<const wchar_t, freetype_allocator<wchar_t>> () const
+    requires std::same_as<remove_const<T>, wchar_t>
+  { return { _begin, _begin+_len }; }
+
+  serde::Result serialize(serde::SerCallback cb, void* data) const
+  { return to_view().serialize(cb, data); }
+  template <class Self_ = Self>
+    requires std::same_as<Self_, Self>
+  macro Selection<const Self> sel() const
+  { return { *this, HeapBuffer<u32>::init() }; }
+  template <class Self_ = Self>
+    requires std::same_as<Self_, Self>
+  macro Selection<Self> sel()
+  { return { *this, HeapBuffer<u32>::init() }; }  
 };
 
 macro struct {
@@ -119,6 +194,16 @@ macro struct {
     return HeapBuffer<T>::from(v);
   }
 } list;
+
+macro struct {
+  template <class T, class... Ts>
+  macro Span<T, CAllocator> operator [] (T arg0, Ts... args) const
+  {
+    const std::initializer_list<T> init_ls = {arg0, args...};
+    let v = View<const T>::from(&*(init_ls.begin())).to(&*(init_ls.end()));
+    return Span<T, CAllocator>::from(v);
+  }
+} span;
 
 template <class T>
 using List = HeapBuffer<T>;

@@ -2,9 +2,6 @@
 #define H_STRING
 #include "buffer.hpp"
 
-macro size_t str_len_s(const char* s)
-{ size_t c = 0; if (!s) return c; while (*s) { c++; s++; }; return c; }
-
 template <class Char = char, Allocator<Char> allocator = CAllocator<Char>>
   requires (!Dropable<Char>)
 struct CString

@@ -5,7 +5,10 @@
 #include "allocator.hpp"
 #include <concepts>
 
-template <class CharT, Allocator<CharT> allocator = VoidAllocator<CharT>>
+template <class CharT,
+          Allocator<remove_const<CharT>> allocator
+            = VoidAllocator<remove_const<CharT>>
+>
 struct FormatView
 {
   CharT *_begin, *_end;
@@ -14,6 +17,11 @@ struct FormatView
   FormatView(FormatView<CharT, allocator>&& other)
     : _begin(other._begin), _end(other._end)
   { other._begin = other._end = nullptr; }
+  FormatView(Own<CharT*> begin, CharT* end)
+    : _begin(begin), _end(end) {}
+  template <Iterable It>
+  static macro FormatView<CharT, allocator> from(Own<It> it)
+  { return { it.begin(), it.end() }; }
   macro CharT*& begin() { return _begin; }
   macro CharT*& end() { return _end; }
   macro const CharT* begin() const { return _begin; }
@@ -23,23 +31,52 @@ struct FormatView
   ~FormatView() { if (_begin) allocator::free(_begin); }
 };
 
-template <class T, class CharT = char>
-concept Formattable = requires (T obj)
+template <class T, class CharT = char,
+          class allocator = VoidAllocator<CharT>>
+concept _MethFormattable = requires (T obj)
+{ { obj.format() } -> std::convertible_to<FormatView<CharT, allocator>>; }
+  && Allocator<allocator, CharT>;
+
+template <class T, class CharT = char,
+          class allocator = VoidAllocator<CharT>>
+concept _ImplFormattable =
+   requires (const T& obj)
+   { { format(obj) } -> std::convertible_to<FormatView<CharT, allocator>>; }
+|| _MethFormattable<T, CharT, allocator>
+&& Allocator<allocator, CharT>;
+
+template <class T, class CharT = char,
+          class allocator = VoidAllocator<CharT>>
+concept Formattable = requires (const T& obj)
 {
-   { obj.format() } -> std::convertible_to<FormatView<CharT>>;
-} || Primitive<T> || requires (T obj)
+  { format(obj) } -> std::convertible_to<FormatView<CharT, allocator>>;
+} || Primitive<T>
+  || _MethFormattable<T, CharT, allocator>
+  || requires (T obj)
 {
   { std::format("{}", obj) };
-};
+}
+  && Allocator<allocator, CharT>;
+
+template <class T, class CharT = char,
+          Allocator<CharT> allocator = VoidAllocator<CharT>>
+  requires _MethFormattable<T, CharT, allocator>
+FormatView<CharT, allocator> format(const T& obj)
+{ return obj.format(); }
 
 template <class T, class CharT = char>
 concept Debuggable = requires (T obj)
 { { obj.debug() } -> std::convertible_to<FormatView<CharT>>; };
 
-template <Formattable T>
+template <_ImplFormattable T>
   requires (!Debuggable<T>)
-struct std::formatter<const T, char>
+struct std::formatter<T, char>
 {
+  macro formatter() {}
+  macro formatter(const formatter&) {}
+  macro formatter(formatter&&) {}
+  macro ~formatter() {}
+  
   template <class ParseContext>
   macro ParseContext::iterator parse(ParseContext& ctx)
   {
@@ -50,16 +87,25 @@ struct std::formatter<const T, char>
   macro FmtContext::iterator format(T obj, FmtContext& ctx) const
   {
     return std::ranges::copy(
-      std::move(obj.format()),
+      std::move(format(obj)),
       ctx.out()
     ).out;
   }
 };
-template <Formattable T>
+
+template <_ImplFormattable T>
   requires (Debuggable<T>)
-struct std::formatter<const T, char>
+struct std::formatter<T, char>
 {
   bool format_instead_of_debug;
+
+  macro formatter() : format_instead_of_debug(false) {}
+  macro formatter(const formatter& o)
+    : format_instead_of_debug(o.format_instead_of_debug) {}
+  macro formatter(formatter&& o)
+    : format_instead_of_debug(o.format_instead_of_debug) {}
+  macro ~formatter() {}
+
   template <class ParseContext>
   macro ParseContext::iterator parse(ParseContext& ctx)
   {
@@ -77,10 +123,18 @@ struct std::formatter<const T, char>
   }
 };
 template <Debuggable T>
-  requires (!Formattable<T>)
-struct std::formatter<const T, char>
+  requires (!_ImplFormattable<T>)
+struct std::formatter<T, char>
 {
   bool format_instead_of_debug;
+
+  macro formatter() : format_instead_of_debug(false) {}
+  macro formatter(const formatter& o)
+    : format_instead_of_debug(o.format_instead_of_debug) {}
+  macro formatter(formatter&& o)
+    : format_instead_of_debug(o.format_instead_of_debug) {}
+  macro ~formatter() {}
+  
   template <class ParseContext>
   macro ParseContext::iterator parse(ParseContext& ctx)
   {

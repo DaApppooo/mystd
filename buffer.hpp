@@ -111,12 +111,14 @@ struct View
   macro const u32& len() const { return _len; }
   macro u32& len() { return _len; }
   macro Self& len(u32 l) { _len = l; return *this; }
-  macro T& operator * () const
+  macro const T& operator * () const
   { return *_begin; }
   macro T& operator * ()
   { return *_begin; }
-  macro View<T> operator ++ ()
+  macro View<T>& operator ++ ()
   { _begin++; _len--; return *this; }
+  macro View<T>& operator -- ()
+  { _begin--; _len++; return *this; }
   macro bool operator == (const View<T> o) const
   {
     if (o.len() != len())
@@ -131,25 +133,31 @@ struct View
   { return _begin[index < 0 ? _len + index : index]; }
   macro T& operator[](index_t index)
   { return _begin[index < 0 ? _len + index : index]; }
-  macro View<T> operator[](u32 start, u32 end) const
+  macro View<const T> operator[](u32 start, u32 end) const
+  { return View<const T>::range(_begin+start, end-start); }
+  macro View<T> operator[](u32 start, u32 end)
   { return View<T>::range(_begin+start, end-start); }
+  macro View<T> slice(u32 start, u32 end)
+  { return View<T>::range(_begin+start, end-start); }
+  macro View<const T> slice(u32 start, u32 end) const
+  { return View<const T>::range(_begin+start, end-start); }
   macro View<T> shortened(u32 diff) const
   { return {_begin+diff, _len-diff}; }
   macro View<T> shortened(u32 begin_off, u32 end_off) const
   { return {_begin+begin_off, _len-begin_off-end_off}; }
   macro HeapBuffer<View<T>> split(const T& item) const;
   macro HeapBuffer<T> alloc() const;
-  macro operator FormatView<char> ()
-    requires std::same_as<T, char>
+  macro operator FormatView<const char> () const
+    requires std::same_as<remove_const<T>, char>
   { return { _begin, _begin+_len }; }
-  macro operator FormatView<char16_t> ()
-    requires std::same_as<T, char16_t>
+  macro operator FormatView<const char16_t> () const
+    requires std::same_as<remove_const<T>, char16_t>
   { return { _begin, _begin+_len }; }
-  macro operator FormatView<char32_t> ()
-    requires std::same_as<T, char32_t>
+  macro operator FormatView<const char32_t> () const
+    requires std::same_as<remove_const<T>, char32_t>
   { return { _begin, _begin+_len }; }
-  macro operator FormatView<wchar_t> ()
-    requires std::same_as<T, wchar_t>
+  macro operator FormatView<const wchar_t> () const
+    requires std::same_as<remove_const<T>, wchar_t>
   { return { _begin, _begin+_len }; }
   macro FormatView<char, CAllocator<char>> format() const
     requires Formattable<T>;
@@ -633,7 +641,7 @@ L Own<Self> CustomBuffer<Self, T, allocator>::copy() const
 
 L Own<Self> CustomBuffer<Self, T, allocator>::move()
 {
-  Self ret = self;
+  Self ret = as_self();
   self = Self::init();
   return ret;
 }
@@ -872,7 +880,7 @@ Opt<Self_> StackBuffer<T, _cap>::deserialize(
   return ret;
 }
 
-// formatting stuff
+// formatting stuff (SHOULD BE IMPROVED TO USE LESS MEMORY ALLOCATIONS)
 template <class T>
 macro FormatView<char, CAllocator<char>> View<T>::format() const
   requires Formattable<T>
@@ -902,6 +910,21 @@ macro FormatView<char, CAllocator<char>> View<T>::format() const
     ret.end() = &s.last();
   }
   return ret;
+}
+
+template <class T>
+macro FormatView<char, CAllocator<char>> View<T>::debug() const
+{
+  mut s = HeapBuffer<char>::from(View<const char>::cstr("View<").to_mut());
+  let name_T = typeid(T).name();
+  s.extend(View<const char>::range(name_T, str_len_s(name_T)));
+  s.extend(View<const char>::cstr(">("));
+  let fmt1 = std::format("{}", _begin);
+  s.extend(View<const char>::range(fmt1.data(), fmt1.size()));
+  let fmt2 = std::format("{}", _len);
+  s.extend(View<const char>::range(fmt2.data(), fmt2.size()));
+  s.push(')');
+  return FormatView<char, CAllocator<char>>::from(s.move());
 }
 
 template <class T>
