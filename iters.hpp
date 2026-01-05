@@ -6,9 +6,9 @@
 #include <concepts>
 
 template <std::integral T>
-struct FixedRangeIterator
+struct FixedRangeIterable
 {
-  using Self = FixedRangeIterator<T>;
+  using Self = FixedRangeIterable<T>;
   using value_type = T;
   using iterator = Self;
   T x;
@@ -42,9 +42,9 @@ struct FixedRangeIterator
 };
 
 template <std::integral T>
-struct LinkedRangeIterator
+struct LinkedRangeIterable
 {
-  using Self = LinkedRangeIterator<T>;
+  using Self = LinkedRangeIterable<T>;
   struct iterator
   {
     using value_type = T;
@@ -85,22 +85,22 @@ struct LinkedRangeIterator
 };
 
 template <std::integral T = i32>
-macro FixedRangeIterator<T> range(T&& count)
+macro FixedRangeIterable<T> range(T&& count)
 { return {0, count, 1}; }
 template <std::integral T = i32>
-macro FixedRangeIterator<T> range(const T begin, T&& end)
+macro FixedRangeIterable<T> range(const T begin, T&& end)
 { return {begin, end, 1}; }
 template <std::integral T = i32>
-macro FixedRangeIterator<T> range(const T begin, T&& end, const T step)
+macro FixedRangeIterable<T> range(const T begin, T&& end, const T step)
 { return {begin, end, step}; }
 template <std::integral T = i32>
-macro LinkedRangeIterator<T> range(T& count)
-{ return LinkedRangeIterator<T>{0, count, 1}; }
+macro LinkedRangeIterable<T> range(T& count)
+{ return LinkedRangeIterable<T>{0, count, 1}; }
 template <std::integral T = i32>
-macro LinkedRangeIterator<T> range(const T begin, T& end)
+macro LinkedRangeIterable<T> range(const T begin, T& end)
 { return {begin, end, 1}; }
 template <std::integral T = i32>
-macro LinkedRangeIterator<T> range(const T begin, T& end, const T step)
+macro LinkedRangeIterable<T> range(const T begin, T& end, const T step)
 { return {begin, end, step}; }
 
 namespace zip_detail {

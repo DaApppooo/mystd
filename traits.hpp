@@ -148,9 +148,9 @@ trait Iterator =
 || OutputIterator<T> /* all iterators require one of these three */;
 
 trait Iterable =
-  requires (T i)
+  requires (remove_ref<T> i)
 {
-  requires Iterator<typename T::iterator>;
+  requires Iterator<typename remove_ref<T>::iterator>;
   { i.begin() } -> std::same_as<typename T::iterator>;
   { i.end() } -> std::same_as<typename T::iterator>;
 };
@@ -158,13 +158,13 @@ trait Iterable =
 template <Iterable It>
 struct _iterable_value_type;
 template <Iterable It>
-  requires (!std::is_pointer_v<typename It::iterator>)
-struct _iterable_value_type<It>
-{ using type = It::iterator::value_type; };
-template <Iterable It>
   requires (std::is_pointer_v<typename It::iterator>)
 struct _iterable_value_type<It>
 { using type = remove_ptr<typename It::iterator>; };
+template <Iterable It>
+  requires (!std::is_pointer_v<typename It::iterator>)
+struct _iterable_value_type<It>
+{ using type = It::iterator::value_type; };
 template <Iterable It>
 using iterable_value_type = _iterable_value_type<It>::type;
 
