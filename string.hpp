@@ -222,4 +222,29 @@ macro String<char, allocator> operator + (
   return cpy;
 }
 
+template <class CharT = char>
+struct StringView : View<CharT>
+{
+  macro operator FormatView<const char> () const
+    requires std::same_as<remove_const<CharT>, char>
+  { return { this->_begin, this->_begin+this->_len }; }
+  macro operator FormatView<const char16_t> () const
+    requires std::same_as<remove_const<CharT>, char16_t>
+  { return { this->_begin, this->_begin+this->_len }; }
+  macro operator FormatView<const char32_t> () const
+    requires std::same_as<remove_const<CharT>, char32_t>
+  { return { this->_begin, this->_begin+this->_len }; }
+  macro operator FormatView<const wchar_t> () const
+    requires std::same_as<remove_const<CharT>, wchar_t>
+  { return { this->_begin, this->_begin+this->_len }; }
+  macro FormatView<CharT, VoidAllocator<char>> format() const
+    requires Formattable<CharT>
+  {
+    return FormatView<CharT, VoidAllocator<CharT>>{
+      this->begin,
+      this->begin + this->_len
+    };
+  }
+};
+
 #endif

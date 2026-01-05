@@ -13,6 +13,10 @@ using remove_const = std::remove_const<T>::type;
 template <class T>
 using remove_ptr = std::remove_pointer<T>::type;
 
+template <class T>
+macro remove_const<T>& to_mut(T& o) { return const_cast<remove_const<T>>(o); }
+// to_const is implicit
+
 trait NonPtrIndexable =
    requires { typename T::index_t; }
 && requires { typename T::indexed_type; }

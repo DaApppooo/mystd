@@ -103,27 +103,55 @@ template <std::integral T = i32>
 macro LinkedRangeIterator<T> range(const T begin, T& end, const T step)
 { return {begin, end, step}; }
 
-// python's zip
-template <Iterable... Iterables> 
-struct ZipIterable
+namespace zip_detail {
+template<std::size_t I, typename R, typename F>
+inline macro R with_integral_constant(F f)
 {
-  std::tuple<Iterables...> iterables;
+  return static_cast<F>(f)(std::integral_constant<std::size_t, I>{});
+}
+template <class T_OUT, class T_IN, size_t... I>
+macro T_OUT deref_tuple(T_IN&& t_in, std::index_sequence<I...>)
+{ return std::tuple(*std::get<I>(std::forward<T_IN>(t_in))...); }
+template <class T_IN, size_t... I>
+macro void incr_tuple(T_IN&& t_in, std::index_sequence<I...>)
+{ (++std::get<I>(std::forward<T_IN>(t_in)), ...); }
+template<std::size_t N, typename R = void, typename F>
+inline macro R with_n(int n, F &&f)
+{
+  macro auto invoke_array =
+    []<std::size_t...I>(std::index_sequence<I...>) {
+    return std::array{ zip_detail::with_integral_constant<I, R, F&&>... };
+  }(std::make_index_sequence<N>{});
 
-  struct iterator
-  {
-    ZipIterable<Iterables...>& parent;
-    std::tuple<typename Iterables::iterator...> iterators;
-    bool finished; // just a tiny bitty flag to make things so much easier
-    
-    
-  };
-  
-};
+  return invoke_array.at(n)(std::forward<F>(f));
+}
+} // namespace detail
 
 template <Iterable... Its>
-macro ZipIterable<Its...> zip(Its&... its)
+generator<std::tuple<typename Its::iterator::value_type...>>
+  zip(Its&&... its)
 {
-  
+  static macro u32 _COUNT = sizeof...(Its);
+  auto iterables = std::tuple<Its...>(its...);
+  auto iters = std::tuple<typename Its::iterator...>(its.begin()...);
+  while (true)
+  {
+    bool finished_early = false;
+    for (u32 i = 0; i < _COUNT && !finished_early; i++)
+      zip_detail::with_n<_COUNT>(
+        i, [&finished_early, &iterables, &iters](auto j)
+        {
+          if (std::get<j>(iterables).end() == std::get<j>(iters))
+            finished_early = true;
+        }
+      );
+    if (finished_early)
+      break;
+    yield zip_detail::deref_tuple
+      <std::tuple<typename Its::iterator::value_type...>>
+      (iters, std::make_index_sequence<_COUNT>());
+    zip_detail::incr_tuple(iters, std::make_index_sequence<_COUNT>());
+  }
 }
 
 template <class It, class BufferUInt>

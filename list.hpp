@@ -100,10 +100,21 @@ struct Span
     self._len = new_len;
     return self;
   }
-  macro View<typename std::remove_const<T>::type> to_mut() const
-  { return { (typename std::remove_const<T>::type*)_begin, _len }; }
-  macro View<const T> to_const() const
-  { return { (const T*)_begin, _len }; }
+  macro Own<Span<remove_const<T>, freetype_allocator>>
+    to_mut() const
+  {
+    mut ret = Span<remove_const<T>, freetype_allocator>{
+      (typename std::remove_const<T>::type*)_begin, _len
+    };
+    _begin = nullptr;
+    return ret;
+  }
+  macro Own<Span<const T, freetype_allocator>> to_const() const
+  {
+    mut ret = Span<const T, freetype_allocator>{ (const T*)_begin, _len };
+    _begin = nullptr;
+    return ret;
+  }
   template <class U>
   macro View<U> as() const
   { return { static_cast<U*>(_begin), _len*sizeof(T)/sizeof(U) }; }  
@@ -184,6 +195,13 @@ struct Span
   macro Selection<Self> sel()
   { return { *this, HeapBuffer<u32>::init() }; }  
 };
+
+template <>
+macro Span<char> Span<char>::cstr(Own<char*> start)
+{ return Span<char>::steal(View<char>::cstr(start)); }
+template <>
+macro Span<const char> Span<const char>::cstr(Own<const char*> start)
+{ return Span<const char>::steal(View<const char>::cstr(start)); }
 
 macro struct {
   template <class T, class... Ts>
