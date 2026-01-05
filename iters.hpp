@@ -128,12 +128,14 @@ inline macro R with_n(int n, F &&f)
 } // namespace detail
 
 template <Iterable... Its>
-generator<std::tuple<typename Its::iterator::value_type...>>
+generator<std::tuple<iterable_value_type<Its>...>>
   zip(Its&&... its)
 {
   static macro u32 _COUNT = sizeof...(Its);
   auto iterables = std::tuple<Its...>(its...);
-  auto iters = std::tuple<typename Its::iterator...>(its.begin()...);
+  auto iters = std::tuple<typename remove_ref<Its>::iterator...>(
+    its.begin()...
+  );
   while (true)
   {
     bool finished_early = false;
@@ -148,7 +150,7 @@ generator<std::tuple<typename Its::iterator::value_type...>>
     if (finished_early)
       break;
     yield zip_detail::deref_tuple
-      <std::tuple<typename Its::iterator::value_type...>>
+      <std::tuple<iterable_value_type<Its>...>>
       (iters, std::make_index_sequence<_COUNT>());
     zip_detail::incr_tuple(iters, std::make_index_sequence<_COUNT>());
   }
