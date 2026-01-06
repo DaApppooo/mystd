@@ -45,11 +45,11 @@ macro bool any(const It& it, Func const& func)
 template <Iterable It, class Func>
 macro bool none(const It& it, Func const& func)
 { return std::none_of(it.begin(), it.end(), func); }
-template <Iterable It, class Func>
-macro bool in(const It& it, typename It::iterator::value_type x)
-  requires Eq<typename It::iterator::value_type>
+template <Iterable It>
+macro bool in(iterable_value_type<It> x, const It& it)
+  requires Eq<iterable_value_type<It>>
 {
-  for (typename It::iterator::value_type& y : it)
+  for (let& y : it)
     if (y == x)
       return true;
   return false;
