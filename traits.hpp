@@ -156,19 +156,12 @@ trait Iterable =
 };
 
 template <Iterable It>
-struct _iterable_value_type;
-template <Iterable It>
-  requires (!std::is_pointer_v<typename remove_ref<It>::iterator>)
-struct _iterable_value_type<It>
+struct _iterable_value_type
 { using type = remove_ref<It>::iterator::value_type; };
 template <Iterable It>
-  requires (std::is_pointer_v<typename remove_ref<It>::iterator>)
+  requires std::is_pointer_v<It>
 struct _iterable_value_type<It>
 { using type = remove_ptr<typename remove_ref<It>::iterator>; };
-template <Iterable It>
-  requires (!std::is_pointer_v<typename It::iterator>)
-struct _iterable_value_type<It>
-{ using type = It::iterator::value_type; };
 template <Iterable It>
 using iterable_value_type = _iterable_value_type<It>::type;
 
