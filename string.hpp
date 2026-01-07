@@ -172,7 +172,11 @@ struct String : CustomBuffer<String<Char, allocator>, Char, allocator>
     self._len = self._cap = static_cast<u32>(str_len_s(cstr));
     self._data = allocator::alloc(self._len);
     std::copy(cstr, cstr+self._len, self._data);
+    return self;
   }
+
+  macro FormatView<Char, VoidAllocator<Char>> format() const
+  { return {this->begin(), this->end()}; }
 };
 
 template <Allocator<char> allocator>
