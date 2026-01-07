@@ -226,6 +226,8 @@ macro String<char, allocator> operator + (
   return cpy;
 }
 
+static_assert(_ImplFormattable<String<>>);
+
 template <class CharT = char>
 struct StringView : View<CharT>
 {

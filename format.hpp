@@ -91,7 +91,7 @@ struct std::formatter<T, char>
   macro FmtContext::iterator format(T obj, FmtContext& ctx) const
   {
     return std::ranges::copy(
-      std::move(format(obj)),
+      std::move(::format(obj)),
       ctx.out()
     ).out;
   }
@@ -125,7 +125,7 @@ struct std::formatter<T, char>
   macro FmtContext::iterator format(T obj, FmtContext& ctx) const
   {
     return std::ranges::copy(
-      std::move(obj.format()),
+      std::move(::format(obj)),
       ctx.out()
     ).out;
   }
@@ -168,7 +168,7 @@ struct std::formatter<T, char>
   macro FmtContext::iterator format(T obj, FmtContext& ctx) const
   {
     return std::ranges::copy(
-      std::move(obj.format()),
+      std::move(::format(obj)),
       ctx.out()
     ).out;
   }
