@@ -48,7 +48,7 @@ struct LinkedRangeIterable
   struct iterator
   {
     using value_type = T;
-    T& x;
+    remove_const<T>& x;
     T& end_;
     T step;
   
@@ -72,14 +72,14 @@ struct LinkedRangeIterable
     macro T& operator * ()
     { return x; }
   };
-  T x;
+  remove_const<T> x;
   T& end_;
   T step;
   
   macro iterator begin()
   { return iterator{ x, end_, step }; }
   macro iterator end()
-  { return iterator{ end_, end_, step }; }
+  { return iterator{ const_cast<remove_const<T>&>(end_), end_, step }; }
   macro T len() const
   { return (end_ - x + step - 1)/step; }
 };

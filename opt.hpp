@@ -1,6 +1,5 @@
 #ifndef H_OPT
 #define H_OPT
-#include <cstdlib>
 #include <iostream>
 #include <type_traits>
 #include "macros.hpp"
