@@ -75,7 +75,11 @@ struct std::formatter<T, char>
   macro formatter() {}
   macro formatter(const formatter&) {}
   macro formatter(formatter&&) {}
-  macro ~formatter() {}
+  // macro ~formatter() {}
+  macro std::formatter<T, char>& operator = (const formatter&)
+  { return *this; }
+  macro std::formatter<T, char>& operator = (formatter&&)
+  { return *this; }
   
   template <class ParseContext>
   macro ParseContext::iterator parse(ParseContext& ctx)
@@ -104,7 +108,11 @@ struct std::formatter<T, char>
     : format_instead_of_debug(o.format_instead_of_debug) {}
   macro formatter(formatter&& o)
     : format_instead_of_debug(o.format_instead_of_debug) {}
-  macro ~formatter() {}
+  // macro ~formatter() {}
+  macro std::formatter<T, char>& operator = (const formatter& f)
+  { format_instead_of_debug = f; return *this; }
+  macro std::formatter<T, char>& operator = (formatter&& f)
+  { format_instead_of_debug = f; return *this; }
 
   template <class ParseContext>
   macro ParseContext::iterator parse(ParseContext& ctx)
@@ -133,7 +141,11 @@ struct std::formatter<T, char>
     : format_instead_of_debug(o.format_instead_of_debug) {}
   macro formatter(formatter&& o)
     : format_instead_of_debug(o.format_instead_of_debug) {}
-  macro ~formatter() {}
+  // macro ~formatter() {}
+  macro std::formatter<T, char>& operator = (const formatter& f)
+  { format_instead_of_debug = f; return *this; }
+  macro std::formatter<T, char>& operator = (formatter&& f)
+  { format_instead_of_debug = f; return *this; }
   
   template <class ParseContext>
   macro ParseContext::iterator parse(ParseContext& ctx)
