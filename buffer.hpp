@@ -185,7 +185,7 @@ macro View<char> View<char>::cstr(char* s)
 { return View<char>::range(s, strlen(s)); }
 template <>
 macro FormatView<const char> View<const char>::format() const
-{ return FormatView<const char>::from(*this); }
+{ println("HEY IT'S ME !!!!"); return FormatView<const char>::from(*this); }
 
 // A buffer allocated on the stack
 template <class T, u32 _cap>
