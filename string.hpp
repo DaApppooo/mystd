@@ -208,6 +208,7 @@ macro String<char, allocator> operator + (
   cpy.extend(View<const char>::cstr(b));
   return cpy;
 }
+
 template <Allocator<char> allocator>
 macro String<char, allocator> operator + (
   const char* a,

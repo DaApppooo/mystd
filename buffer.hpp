@@ -148,22 +148,22 @@ struct View
   { return {_begin+begin_off, _len-begin_off-end_off}; }
   macro HeapBuffer<View<T>> split(const T& item) const;
   macro HeapBuffer<T> alloc() const;
-  macro operator FormatView<const char> () const
-    requires std::same_as<remove_const<T>, char>
-  { return { _begin, _begin+_len }; }
-  macro operator FormatView<const char16_t> () const
-    requires std::same_as<remove_const<T>, char16_t>
-  { return { _begin, _begin+_len }; }
-  macro operator FormatView<const char32_t> () const
-    requires std::same_as<remove_const<T>, char32_t>
-  { return { _begin, _begin+_len }; }
-  macro operator FormatView<const wchar_t> () const
-    requires std::same_as<remove_const<T>, wchar_t>
-  { return { _begin, _begin+_len }; }
-  macro FormatView<char> format() const
-    requires Formattable<T>;
-  macro FormatView<char> debug() const;
-  macro FormatView<const char> format() const = delete;
+  // macro operator FormatView<const char> () const
+  //   requires std::same_as<remove_const<T>, char>
+  // { return { _begin, _begin+_len }; }
+  // macro operator FormatView<const char16_t> () const
+  //   requires std::same_as<remove_const<T>, char16_t>
+  // { return { _begin, _begin+_len }; }
+  // macro operator FormatView<const char32_t> () const
+  //   requires std::same_as<remove_const<T>, char32_t>
+  // { return { _begin, _begin+_len }; }
+  // macro operator FormatView<const wchar_t> () const
+  //   requires std::same_as<remove_const<T>, wchar_t>
+  // { return { _begin, _begin+_len }; }
+  // macro FormatView<char> format() const
+  //   requires Formattable<T>;
+  // macro FormatView<char> debug() const;
+  // macro FormatView<const char> format() const = delete;
 
   // serde
   serde::Result serialize(serde::SerCallback cb, void* data) const;
@@ -184,10 +184,10 @@ macro View<const char> View<const char>::cstr(const char* s)
 template <>
 macro View<char> View<char>::cstr(char* s)
 { return View<char>::range(s, strlen(s)); }
-template <>
-macro FormatView<const char>
-  View<const char>::format() const
-{ return FormatView<const char>::from(*this); }
+// template <>
+// macro FormatView<const char>
+//   View<const char>::format() const
+// { return FormatView<const char>::from(*this); }
 
 // A buffer allocated on the stack
 template <class T, u32 _cap>
@@ -888,6 +888,7 @@ Opt<Self_> StackBuffer<T, _cap>::deserialize(
 }
 
 // formatting stuff (SHOULD BE IMPROVED TO USE LESS MEMORY ALLOCATIONS)
+/*
 template <class T>
 macro FormatView<char> View<T>::format() const
   requires Formattable<T>
@@ -956,6 +957,7 @@ constexpr HeapBuffer<View<T>> View<T>::split(const T& item) const
   h.push(View<T>::range(_begin+prev, c-prev));
   return h;
 }
+*/
 
 template <class T>
 constexpr HeapBuffer<T> View<T>::alloc() const
