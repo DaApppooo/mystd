@@ -176,10 +176,10 @@ struct String : CustomBuffer<String<Char, allocator>, Char, allocator>
     std::copy(cstr, cstr+self._len, self._data);
     return self;
   }
-
-  // macro FormatView<Char> format() const
-  // { return {this->begin(), this->end(), VoidAllocator<Char>::free}; }
 };
+template <class Char = char>
+macro FormatView<Char> format(const String<Char>& self)
+{ return {self.begin(), self.end(), VoidAllocator<Char>::free}; }
 
 template <Allocator<char> allocator>
 macro String<char, allocator>& operator += (
