@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <concepts>
 #include <cstring>
-#include <format>
 #include <iterator>
 #include <memory>
 #include <vector>
@@ -148,9 +147,9 @@ struct View
   { return {_begin+begin_off, _len-begin_off-end_off}; }
   macro HeapBuffer<View<T>> split(const T& item) const;
   macro HeapBuffer<T> alloc() const;
-  // macro operator FormatView<const char> () const
-  //   requires std::same_as<remove_const<T>, char>
-  // { return { _begin, _begin+_len }; }
+  macro operator FormatView<const char> () const
+    requires std::same_as<remove_const<T>, char>
+  { return { _begin, _begin+_len }; }
   // macro operator FormatView<const char16_t> () const
   //   requires std::same_as<remove_const<T>, char16_t>
   // { return { _begin, _begin+_len }; }
