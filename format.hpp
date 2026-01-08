@@ -130,8 +130,8 @@ struct std::formatter<T, Char>
     {
       if (*it == '?')
         format_instead_of_debug = true;
-      it++;
-    };
+      ++it;
+    }
     return it;
   }
 
@@ -175,7 +175,10 @@ struct std::formatter<T, Char>
       throw std::format_error(
         "Object only supports {:?} format because it is only Debuggable"
       );
+<<<<<<< HEAD
     while (*it != '}') it++;
+=======
+>>>>>>> 40ab69913e6d12c42f9b92090e8f3e1013effe47
     return it;
   }
 
