@@ -183,10 +183,6 @@ macro View<const char> View<const char>::cstr(const char* s)
 template <>
 macro View<char> View<char>::cstr(char* s)
 { return View<char>::range(s, strlen(s)); }
-template <>
-macro FormatView<const char>
-  View<const char>::format() const
-{ return FormatView<const char>::from(*this); }
 template <class Char>
   requires std::same_as<remove_const<Char>, char>
 struct std::formatter<View<Char>, Char>
@@ -202,7 +198,9 @@ struct std::formatter<View<Char>, Char>
   template <class ParseContext>
   macro ParseContext::iterator parse(ParseContext& ctx)
   {
-    return ctx.end() - 1;
+    mut it = ctx.begin();
+    while (*it != '}') it++;
+    return it;
   }
 
   template <class FmtContext>
