@@ -3,6 +3,7 @@
 #include "macros.hpp"
 #include "traits.hpp"
 #include "allocator.hpp"
+#include <format>
 #include <functional>
 
 template <class CharT>
@@ -67,6 +68,11 @@ FormatView<CharT> format(const T& obj)
 template <class T, class CharT = char>
 concept Debuggable = requires (T obj)
 { { obj.debug() } -> std::convertible_to<FormatView<CharT>>; };
+
+template <_ImplFormattable fmt>
+constexpr auto std::format_kind<fmt> = std::range_format::disabled;
+template <Debuggable fmt>
+constexpr auto std::format_kind<fmt> = std::range_format::disabled;
 
 template <class T, class Char>
   requires (_ImplFormattable<T, char>
