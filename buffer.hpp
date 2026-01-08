@@ -188,7 +188,7 @@ macro View<char> View<char>::cstr(char* s)
 template <class T>
 macro FormatView<char> View<T>::format() const
   requires std::same_as<T, const char>
-{ return FormatView<char>::from(*this); }
+{ return FormatView<char>::from(this->to_mut()); }
 
 static_assert(_MethFormattable<View<const char>>);
 
