@@ -187,6 +187,34 @@ template <>
 macro FormatView<const char>
   View<const char>::format() const
 { return FormatView<const char>::from(*this); }
+template <class Char>
+  requires std::same_as<remove_const<Char>, char>
+struct std::formatter<View<Char>, Char>
+{
+  macro formatter() {}
+  macro formatter(const formatter&) {}
+  macro formatter(formatter&&) {}
+  macro std::formatter<View<Char>, char>& operator = (const formatter&)
+  { return *this; }
+  macro std::formatter<View<Char>, char>& operator = (formatter&&)
+  { return *this; }
+  
+  template <class ParseContext>
+  macro ParseContext::iterator parse(ParseContext& ctx)
+  {
+    return ctx.end() - 1;
+  }
+
+  template <class FmtContext>
+  macro FmtContext::iterator format(const View<Char>& obj, FmtContext& ctx) const
+  {
+    return std::ranges::copy(
+      obj,
+      ctx.out()
+    ).out;
+  }
+};
+
 
 // A buffer allocated on the stack
 template <class T, u32 _cap>
