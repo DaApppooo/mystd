@@ -149,7 +149,7 @@ struct View
   macro HeapBuffer<T> alloc() const;
   macro operator FormatView<const char> () const
     requires std::same_as<remove_const<T>, char>
-  { return { _begin, _begin+_len }; }
+  { return { _begin, _begin+_len, VoidAllocator<char>::free }; }
   // macro operator FormatView<const char16_t> () const
   //   requires std::same_as<remove_const<T>, char16_t>
   // { return { _begin, _begin+_len }; }
