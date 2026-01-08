@@ -171,18 +171,18 @@ struct Span
   macro View<T> shortened(u32 begin_off, u32 end_off) const
   { return {_begin+begin_off, _len-begin_off-end_off}; }
   
-  macro operator FormatView<const char, freetype_allocator<char>> () const
+  macro operator FormatView<const char> () const
     requires std::same_as<remove_const<T>, char>
-  { return { _begin, _begin+_len }; }
-  macro operator FormatView<const char16_t, freetype_allocator<char16_t>> () const
+  { return { _begin, _begin+_len, VoidAllocator<indexed_type>::free }; }
+  macro operator FormatView<const char16_t> () const
     requires std::same_as<remove_const<T>, char16_t>
-  { return { _begin, _begin+_len }; }
-  macro operator FormatView<const char32_t, freetype_allocator<char32_t>> () const
+  { return { _begin, _begin+_len, VoidAllocator<indexed_type>::free }; }
+  macro operator FormatView<const char32_t> () const
     requires std::same_as<remove_const<T>, char32_t>
-  { return { _begin, _begin+_len }; }
-  macro operator FormatView<const wchar_t, freetype_allocator<wchar_t>> () const
+  { return { _begin, _begin+_len, VoidAllocator<indexed_type>::free }; }
+  macro operator FormatView<const wchar_t> () const
     requires std::same_as<remove_const<T>, wchar_t>
-  { return { _begin, _begin+_len }; }
+  { return { _begin, _begin+_len, VoidAllocator<indexed_type>::free }; }
 
   serde::Result serialize(serde::SerCallback cb, void* data) const
   { return to_view().serialize(cb, data); }
