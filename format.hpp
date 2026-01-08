@@ -17,6 +17,10 @@ struct FormatView
   FormatView(FormatView<CharT, allocator>&& other)
     : _begin(other._begin), _end(other._end)
   { other._begin = other._end = nullptr; }
+  template <Allocator<remove_const<CharT>> alloc2>
+    requires (!std::same_as<alloc2, allocator>)
+  FormatView(const FormatView<CharT, alloc2>& other)
+    : _begin(other._begin), _end(other._end) {}
   FormatView(Own<CharT*> begin, CharT* end)
     : _begin(begin), _end(end) {}
   template <Iterable It>
@@ -64,115 +68,121 @@ template <class T, class CharT = char,
 FormatView<CharT, allocator> format(const T& obj)
 { return obj.format(); }
 
-template <class T, class CharT = char>
+template <class T, class CharT = char, class allocator = VoidAllocator<char>>
 concept Debuggable = requires (T obj)
-{ { obj.debug() } -> std::convertible_to<FormatView<CharT>>; };
+{ { obj.debug() } -> std::convertible_to<FormatView<CharT, allocator>>; };
 
-template <_ImplFormattable T>
-  requires (!Debuggable<T>)
-struct std::formatter<T, char>
-{
-  macro formatter() {}
-  macro formatter(const formatter&) {}
-  macro formatter(formatter&&) {}
-  // macro ~formatter() {}
-  macro std::formatter<T, char>& operator = (const formatter&)
-  { return *this; }
-  macro std::formatter<T, char>& operator = (formatter&&)
-  { return *this; }
-  
-  template <class ParseContext>
-  macro ParseContext::iterator parse(ParseContext& ctx)
-  {
-    return ctx.end();
-  }
-
-  template <class FmtContext>
-  macro FmtContext::iterator format(T obj, FmtContext& ctx) const
-  {
-    return std::ranges::copy(
-      std::move(::format(obj)),
-      ctx.out()
-    ).out;
-  }
+#define _format_with_allocator(ALLOC) \
+template <class T, class Char> \
+  requires (_ImplFormattable<T, char, ALLOC> \
+            && !Debuggable<T, char, ALLOC>) \
+struct std::formatter<T, Char> \
+{ \
+  macro formatter() {} \
+  macro formatter(const formatter&) {} \
+  macro formatter(formatter&&) {} \
+  // macro ~formatter() {} \
+  macro std::formatter<T, char>& operator = (const formatter&) \
+  { return *this; } \
+  macro std::formatter<T, char>& operator = (formatter&&) \
+  { return *this; } \
+   \
+  template <class ParseContext> \
+  macro ParseContext::iterator parse(ParseContext& ctx) \
+  { \
+    return ctx.end(); \
+  } \
+ \
+  template <class FmtContext> \
+  macro FmtContext::iterator format(T obj, FmtContext& ctx) const \
+  { \
+    return std::ranges::copy( \
+      std::move(::format(obj)), \
+      ctx.out() \
+    ).out; \
+  } \
+}; \
+ \
+template <class T, class Char> \
+  requires (_ImplFormattable<T, char, ALLOC> \
+            && Debuggable<T, char, ALLOC>) \
+struct std::formatter<T, char> \
+{ \
+  bool format_instead_of_debug; \
+ \
+  macro formatter() : format_instead_of_debug(false) {} \
+  macro formatter(const formatter& o) \
+    : format_instead_of_debug(o.format_instead_of_debug) {} \
+  macro formatter(formatter&& o) \
+    : format_instead_of_debug(o.format_instead_of_debug) {} \
+  // macro ~formatter() {} \
+  macro std::formatter<T, char>& operator = (const formatter& f) \
+  { format_instead_of_debug = f; return *this; } \
+  macro std::formatter<T, char>& operator = (formatter&& f) \
+  { format_instead_of_debug = f; return *this; } \
+ \
+  template <class ParseContext> \
+  macro ParseContext::iterator parse(ParseContext& ctx) \
+  { \
+    format_instead_of_debug = ctx.begin() == ctx.end(); \
+    return ctx.end(); \
+  } \
+ \
+  template <class FmtContext> \
+  macro FmtContext::iterator format(T obj, FmtContext& ctx) const \
+  { \
+    return std::ranges::copy( \
+      std::move(::format(obj)), \
+      ctx.out() \
+    ).out; \
+  } \
+}; \
+template <class T, class Char> \
+  requires (!_ImplFormattable<T, char, ALLOC> \
+            && Debuggable<T, char, ALLOC>) \
+struct std::formatter<T, char> \
+{ \
+  bool format_instead_of_debug; \
+ \
+  macro formatter() : format_instead_of_debug(false) {} \
+  macro formatter(const formatter& o) \
+    : format_instead_of_debug(o.format_instead_of_debug) {} \
+  macro formatter(formatter&& o) \
+    : format_instead_of_debug(o.format_instead_of_debug) {} \
+  // macro ~formatter() {} \
+  macro std::formatter<T, char>& operator = (const formatter& f) \
+  { format_instead_of_debug = f; return *this; } \
+  macro std::formatter<T, char>& operator = (formatter&& f) \
+  { format_instead_of_debug = f; return *this; } \
+   \
+  template <class ParseContext> \
+  macro ParseContext::iterator parse(ParseContext& ctx) \
+  { \
+    mut it = ctx.begin(); \
+    if ( \
+      it == ctx.end() \
+      || *it != ':' \
+      || (++it == ctx.end()) \
+      || *it != '?' \
+      || (++it != ctx.end()) \
+    ) \
+      throw std::format_error( \
+        "Object only supports {:?} format because it is only Debuggable" \
+      ); \
+    return ctx.end(); \
+  } \
+ \
+  template <class FmtContext> \
+  macro FmtContext::iterator format(T obj, FmtContext& ctx) const \
+  { \
+    return std::ranges::copy( \
+      std::move(::format(obj)), \
+      ctx.out() \
+    ).out; \
+  } \
 };
 
-template <_ImplFormattable T>
-  requires (Debuggable<T>)
-struct std::formatter<T, char>
-{
-  bool format_instead_of_debug;
-
-  macro formatter() : format_instead_of_debug(false) {}
-  macro formatter(const formatter& o)
-    : format_instead_of_debug(o.format_instead_of_debug) {}
-  macro formatter(formatter&& o)
-    : format_instead_of_debug(o.format_instead_of_debug) {}
-  // macro ~formatter() {}
-  macro std::formatter<T, char>& operator = (const formatter& f)
-  { format_instead_of_debug = f; return *this; }
-  macro std::formatter<T, char>& operator = (formatter&& f)
-  { format_instead_of_debug = f; return *this; }
-
-  template <class ParseContext>
-  macro ParseContext::iterator parse(ParseContext& ctx)
-  {
-    format_instead_of_debug = ctx.begin() == ctx.end();
-    return ctx.end();
-  }
-
-  template <class FmtContext>
-  macro FmtContext::iterator format(T obj, FmtContext& ctx) const
-  {
-    return std::ranges::copy(
-      std::move(::format(obj)),
-      ctx.out()
-    ).out;
-  }
-};
-template <Debuggable T>
-  requires (!_ImplFormattable<T>)
-struct std::formatter<T, char>
-{
-  bool format_instead_of_debug;
-
-  macro formatter() : format_instead_of_debug(false) {}
-  macro formatter(const formatter& o)
-    : format_instead_of_debug(o.format_instead_of_debug) {}
-  macro formatter(formatter&& o)
-    : format_instead_of_debug(o.format_instead_of_debug) {}
-  // macro ~formatter() {}
-  macro std::formatter<T, char>& operator = (const formatter& f)
-  { format_instead_of_debug = f; return *this; }
-  macro std::formatter<T, char>& operator = (formatter&& f)
-  { format_instead_of_debug = f; return *this; }
-  
-  template <class ParseContext>
-  macro ParseContext::iterator parse(ParseContext& ctx)
-  {
-    mut it = ctx.begin();
-    if (
-      it == ctx.end()
-      || *it != ':'
-      || (++it == ctx.end())
-      || *it != '?'
-      || (++it != ctx.end())
-    )
-      throw std::format_error(
-        "Object only supports {:?} format because it is only Debuggable"
-      );
-    return ctx.end();
-  }
-
-  template <class FmtContext>
-  macro FmtContext::iterator format(T obj, FmtContext& ctx) const
-  {
-    return std::ranges::copy(
-      std::move(::format(obj)),
-      ctx.out()
-    ).out;
-  }
-};
+_format_with_allocator(VoidAllocator<Char>)
 
 
 #endif

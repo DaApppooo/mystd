@@ -1,7 +1,9 @@
 #ifndef H_OPT
 #define H_OPT
+#include <format>
 #include <iostream>
 #include <type_traits>
+#include "format.hpp"
 #include "macros.hpp"
 #include "traits.hpp"
 
@@ -119,6 +121,31 @@ struct Opt
   {
     if (_status == SOME)
       _obj.drop();
+  }
+
+  macro FormatView<char, CAllocator<char>> debug() const
+  {
+    static constexpr u32 typename_len = str_len_s(typeid(T).name());
+    static constexpr u32 none_len = sizeof("Opt<>(None)") + typename_len - 1;
+    static constexpr u32 some_len = sizeof("Opt<>(Some)") + typename_len - 1;
+    static constexpr const char* typename_str = typeid(T).name();
+    
+    char *begin, *end;
+    if (is_null())
+    {
+      begin = CAllocator<char>::alloc(none_len);
+      end = std::format_to_n(
+        begin, none_len, "Opt<{}>(None)", typename_str
+      ).out;
+    }
+    else
+    {
+      begin = CAllocator<char>::alloc(some_len);
+      end = std::format_to_n(
+        begin, none_len, "Opt<{}>(Some)", typename_str
+      ).out;
+    }
+    return { begin, end };
   }
 };
 

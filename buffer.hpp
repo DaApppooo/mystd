@@ -162,6 +162,7 @@ struct View
   macro FormatView<char, CAllocator<char>> format() const
     requires Formattable<T>;
   macro FormatView<char, CAllocator<char>> debug() const;
+  macro FormatView<const char, VoidAllocator<char>> format() const = delete;
 
   // serde
   serde::Result serialize(serde::SerCallback cb, void* data) const;
@@ -182,6 +183,10 @@ macro View<const char> View<const char>::cstr(const char* s)
 template <>
 macro View<char> View<char>::cstr(char* s)
 { return View<char>::range(s, strlen(s)); }
+template <>
+macro FormatView<const char, VoidAllocator<char>>
+  View<const char>::format() const
+{ return { begin(), end() }; }
 
 // A buffer allocated on the stack
 template <class T, u32 _cap>
