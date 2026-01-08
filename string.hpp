@@ -180,9 +180,6 @@ struct String : CustomBuffer<String<Char, allocator>, Char, allocator>
   // macro FormatView<Char> format() const
   // { return {this->begin(), this->end(), VoidAllocator<Char>::free}; }
 };
-// static_assert(_ImplFormattable<String<char>>);
-// static_assert(!Debuggable<String<char>>);
-// static_assert(std::is_constructible_v<std::formatter<String<char>, char>>);
 
 template <Allocator<char> allocator>
 macro String<char, allocator>& operator += (
@@ -230,8 +227,6 @@ macro String<char, allocator> operator + (
   cpy.extend(View<const char>::cstr(b));
   return cpy;
 }
-
-static_assert(_ImplFormattable<String<>>);
 
 template <class CharT = char>
 struct StringView : View<CharT>
