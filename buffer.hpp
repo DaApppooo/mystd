@@ -160,7 +160,7 @@ struct View
   //   requires std::same_as<remove_const<T>, wchar_t>
   // { return { _begin, _begin+_len }; }
   macro FormatView<char> format() const
-    requires Formattable<T>;
+    requires (Formattable<T> && !std::same_as<T, const char>);
   macro FormatView<char> debug() const;
   macro FormatView<const char> format() const = delete;
 
@@ -185,7 +185,7 @@ macro View<char> View<char>::cstr(char* s)
 { return View<char>::range(s, strlen(s)); }
 template <>
 macro FormatView<const char> View<const char>::format() const
-{ println("HEY IT'S ME !!!!"); return FormatView<const char>::from(*this); }
+{ return FormatView<const char>::from(*this); }
 
 // A buffer allocated on the stack
 template <class T, u32 _cap>
@@ -889,7 +889,7 @@ Opt<Self_> StackBuffer<T, _cap>::deserialize(
 
 template <class T>
 macro FormatView<char> View<T>::format() const
-  requires Formattable<T>
+  requires (Formattable<T> && !std::same_as<T, const char>)
 {
   FormatView<char> ret;
   if (len() == 0)
