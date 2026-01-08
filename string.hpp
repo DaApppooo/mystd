@@ -195,7 +195,9 @@ struct std::formatter<String<Char>, Char>
   template <class ParseContext>
   macro ParseContext::iterator parse(ParseContext& ctx)
   {
-    return ctx.end() - 1;
+    mut it = ctx.begin();
+    while (*it != '}') it++;
+    return it;
   }
 
   template <class FmtContext>
