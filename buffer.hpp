@@ -163,7 +163,7 @@ struct View
   // macro FormatView<char> format() const
   //   requires Formattable<T>;
   // macro FormatView<char> debug() const;
-  // macro FormatView<const char> format() const = delete;
+  macro FormatView<const char> format() const = delete;
 
   // serde
   serde::Result serialize(serde::SerCallback cb, void* data) const;
@@ -184,10 +184,10 @@ macro View<const char> View<const char>::cstr(const char* s)
 template <>
 macro View<char> View<char>::cstr(char* s)
 { return View<char>::range(s, strlen(s)); }
-// template <>
-// macro FormatView<const char>
-//   View<const char>::format() const
-// { return FormatView<const char>::from(*this); }
+template <>
+macro FormatView<const char>
+  View<const char>::format() const
+{ return FormatView<const char>::from(*this); }
 
 // A buffer allocated on the stack
 template <class T, u32 _cap>
