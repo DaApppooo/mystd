@@ -177,9 +177,36 @@ struct String : CustomBuffer<String<Char, allocator>, Char, allocator>
     return self;
   }
 };
-template <class Char = char>
-macro FormatView<Char> format(const String<Char>& self)
-{ return {self.begin(), self.end(), VoidAllocator<Char>::free}; }
+// template <class Char = char>
+// macro FormatView<Char> format(const String<Char>& self)
+// { return {self.begin(), self.end(), VoidAllocator<Char>::free}; }
+
+template <class Char>
+struct std::formatter<String<Char>, Char>
+{
+  macro formatter() {}
+  macro formatter(const formatter&) {}
+  macro formatter(formatter&&) {}
+  macro std::formatter<String<Char>, char>& operator = (const formatter&)
+  { return *this; }
+  macro std::formatter<String<Char>, char>& operator = (formatter&&)
+  { return *this; }
+  
+  template <class ParseContext>
+  macro ParseContext::iterator parse(ParseContext& ctx)
+  {
+    return ctx.end();
+  }
+
+  template <class FmtContext>
+  macro FmtContext::iterator format(const String<Char>& obj, FmtContext& ctx) const
+  {
+    return std::ranges::ref_view(
+      obj,
+      ctx.out()
+    ).out;
+  }
+};
 
 template <Allocator<char> allocator>
 macro String<char, allocator>& operator += (
