@@ -1,6 +1,8 @@
 #ifndef H_STRING
 #define H_STRING
+#include "allocator.hpp"
 #include "buffer.hpp"
+#include "format.hpp"
 
 template <class Char = char, Allocator<Char> allocator = CAllocator<Char>>
   requires (!Dropable<Char>)
@@ -175,9 +177,12 @@ struct String : CustomBuffer<String<Char, allocator>, Char, allocator>
     return self;
   }
 
-  macro FormatView<Char, VoidAllocator<Char>> format() const
-  { return {this->begin(), this->end()}; }
+  macro FormatView<Char> format() const
+  { return {this->begin(), this->end(), VoidAllocator<Char>::free}; }
 };
+static_assert(_ImplFormattable<String<char>>);
+static_assert(!Debuggable<String<char>>);
+static_assert(std::is_constructible_v<std::formatter<String<char>, char>>);
 
 template <Allocator<char> allocator>
 macro String<char, allocator>& operator += (
@@ -243,12 +248,13 @@ struct StringView : View<CharT>
   macro operator FormatView<const wchar_t> () const
     requires std::same_as<remove_const<CharT>, wchar_t>
   { return { this->_begin, this->_begin+this->_len }; }
-  macro FormatView<CharT, VoidAllocator<char>> format() const
+  macro FormatView<CharT> format() const
     requires Formattable<CharT>
   {
-    return FormatView<CharT, VoidAllocator<CharT>>{
+    return FormatView<CharT>{
       this->begin,
-      this->begin + this->_len
+      this->begin + this->_len,
+      VoidAllocator<CharT>::free
     };
   }
 };

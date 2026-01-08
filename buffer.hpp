@@ -40,6 +40,7 @@ struct View
   using iterator = T*;
   using indexed_type = T;
   using index_t = i32;
+  using allocator = VoidAllocator<T>;
   Ref<T*> _begin;
   u32 _len;
   macro View() = default;
@@ -159,10 +160,10 @@ struct View
   macro operator FormatView<const wchar_t> () const
     requires std::same_as<remove_const<T>, wchar_t>
   { return { _begin, _begin+_len }; }
-  macro FormatView<char, CAllocator<char>> format() const
+  macro FormatView<char> format() const
     requires Formattable<T>;
-  macro FormatView<char, CAllocator<char>> debug() const;
-  macro FormatView<const char, VoidAllocator<char>> format() const = delete;
+  macro FormatView<char> debug() const;
+  macro FormatView<const char> format() const = delete;
 
   // serde
   serde::Result serialize(serde::SerCallback cb, void* data) const;
@@ -184,9 +185,9 @@ template <>
 macro View<char> View<char>::cstr(char* s)
 { return View<char>::range(s, strlen(s)); }
 template <>
-macro FormatView<const char, VoidAllocator<char>>
+macro FormatView<const char>
   View<const char>::format() const
-{ return { begin(), end() }; }
+{ return FormatView<const char>::from(*this); }
 
 // A buffer allocated on the stack
 template <class T, u32 _cap>
@@ -378,12 +379,13 @@ struct StackBuffer
 };
 
 // A buffer allocated on the heap
-template <class Self, class T, Allocator<T> allocator = CAllocator<T>>
+template <class Self, class T, Allocator<T> _allocator = CAllocator<T>>
 struct CustomBuffer
 {
   using iterator = T*;
   using indexed_type = T;
   using index_t = i32;
+  using allocator = _allocator;
   mutable T* _data;
   u32 _len;
   u32 _cap;
@@ -391,7 +393,7 @@ struct CustomBuffer
   { return {nullptr, 0, 0}; }
   // unintialized buffer
   static macro Self alloc(u32 cap)
-  { return {allocator::alloc(cap), 0, cap}; }
+  { return {_allocator::alloc(cap), 0, cap}; }
   template <class StdCppAllocator>
   static macro Self steal(std::vector<T, StdCppAllocator>& std_cpp_vec)
   {
@@ -405,7 +407,7 @@ struct CustomBuffer
   static macro Self filled(const T& value, u32 size)
   {
     Self self;
-    self._data = allocator::alloc(size);
+    self._data = _allocator::alloc(size);
     self._len = self._cap = size;
     std::fill(self._data, self._data+self._len, value);
     return self;
@@ -413,7 +415,7 @@ struct CustomBuffer
   static macro Self from(const View<const T>& v)
   {
     Self self;
-    self._data = allocator::alloc(v._len);
+    self._data = _allocator::alloc(v._len);
     self._len = self._cap = v._len;
     std::copy(v.begin(), v.end(), self._data);
     return self;
@@ -423,7 +425,7 @@ struct CustomBuffer
   static macro Self from(const It_T& v)
   {
     Self self;
-    self._data = allocator::alloc(v.len());
+    self._data = _allocator::alloc(v.len());
     self._cap = self._len = v.len();
     std::copy(v.begin(), v.end(), self._data);
     return self;
@@ -463,9 +465,9 @@ struct CustomBuffer
   // self is moved
   template <class U>
     requires (sizeof(T) % sizeof(U) == 0)
-  macro Own<CustomBuffer<U, allocator>> content_as()
+  macro Own<CustomBuffer<U, _allocator>> content_as()
   {
-    CustomBuffer<U, allocator> ret = {
+    CustomBuffer<U, _allocator> ret = {
       ._data=reinterpret_cast<U*>(_data),
       ._len=_len*sizeof(T)/sizeof(U),
       ._cap=_cap*sizeof(T)/sizeof(U)
@@ -528,13 +530,13 @@ struct CustomBuffer
   {
     const u32 grow_size = _cap/2+(_cap<2);
     _cap += grow_size;
-    _data = allocator::alloc(_data, _cap);
+    _data = _allocator::alloc(_data, _cap);
     return grow_size;
   }
   macro Self& shrink_cap(u32 new_cap)
   {
     need(new_cap <= _cap);
-    _data = allocator::alloc(_data, new_cap);
+    _data = _allocator::alloc(_data, new_cap);
     return *this;
   }
 
@@ -887,10 +889,10 @@ Opt<Self_> StackBuffer<T, _cap>::deserialize(
 
 // formatting stuff (SHOULD BE IMPROVED TO USE LESS MEMORY ALLOCATIONS)
 template <class T>
-macro FormatView<char, CAllocator<char>> View<T>::format() const
+macro FormatView<char> View<T>::format() const
   requires Formattable<T>
 {
-  FormatView<char, CAllocator<char>> ret;
+  FormatView<char> ret;
   if (len() == 0)
   {
     const char* const s = "[]";
@@ -914,11 +916,12 @@ macro FormatView<char, CAllocator<char>> View<T>::format() const
     ret.begin() = &s.first();
     ret.end() = &s.last();
   }
+  ret.dropper = VoidAllocator<T>::free;
   return ret;
 }
 
 template <class T>
-macro FormatView<char, CAllocator<char>> View<T>::debug() const
+macro FormatView<char> View<T>::debug() const
 {
   mut s = HeapBuffer<char>::from(View<const char>::cstr("View<").to_mut());
   let name_T = typeid(T).name();
@@ -929,7 +932,7 @@ macro FormatView<char, CAllocator<char>> View<T>::debug() const
   let fmt2 = std::format("{}", _len);
   s.extend(View<const char>::range(fmt2.data(), fmt2.size()));
   s.push(')');
-  return FormatView<char, CAllocator<char>>::from(s.move());
+  return FormatView<char>::from(s.move());
 }
 
 template <class T>

@@ -3,187 +3,175 @@
 #include "macros.hpp"
 #include "traits.hpp"
 #include "allocator.hpp"
-#include <concepts>
+#include <functional>
 
-template <class CharT,
-          Allocator<remove_const<CharT>> allocator
-            = VoidAllocator<remove_const<CharT>>
->
+template <class CharT>
 struct FormatView
 {
   CharT *_begin, *_end;
+  std::function<void(CharT*)> dropper;
   FormatView() {}
-  FormatView(const FormatView<CharT, allocator>&) = delete;
-  FormatView(FormatView<CharT, allocator>&& other)
-    : _begin(other._begin), _end(other._end)
+  FormatView(const FormatView<CharT>&) = delete;
+  FormatView(FormatView<CharT>&& other)
+    : _begin(other._begin), _end(other._end), dropper(other.dropper)
   { other._begin = other._end = nullptr; }
-  template <Allocator<remove_const<CharT>> alloc2>
-    requires (!std::same_as<alloc2, allocator>)
-  FormatView(const FormatView<CharT, alloc2>& other)
-    : _begin(other._begin), _end(other._end) {}
-  FormatView(Own<CharT*> begin, CharT* end)
-    : _begin(begin), _end(end) {}
+  FormatView(Own<CharT*> begin, CharT* end,
+             std::function<void(CharT*)>&& dropper)
+    : _begin(begin), _end(end), dropper(dropper) {}
   template <Iterable It>
-  static macro FormatView<CharT, allocator> from(Own<It> it)
-  { return { it.begin(), it.end() }; }
+    requires HasAllocator<It>
+  static macro FormatView<CharT> from(Own<It> it)
+  { return { it.begin(), it.end(), It::allocator::free }; }
+  template <Allocator<CharT> alloc>
+  static macro FormatView<CharT> from(Own<CharT*> begin, CharT* end)
+  { return { begin, end, alloc::free }; }
+  template <template <class T> class alloc>
+    requires Allocator<alloc<CharT>, CharT>
+  static macro FormatView<CharT> from(Own<CharT*> begin, CharT* end)
+  { return { begin, end, alloc<CharT>::free }; }
   macro CharT*& begin() { return _begin; }
   macro CharT*& end() { return _end; }
   macro const CharT* begin() const { return _begin; }
   macro const CharT* end() const { return _end; }
   macro const CharT* cbegin() const { return _begin; }
   macro const CharT* cend() const { return _end; }
-  ~FormatView() { if (_begin) allocator::free(_begin); }
+  ~FormatView() { if (_begin) dropper(_begin); }
 };
 
-template <class T, class CharT = char,
-          class allocator = VoidAllocator<CharT>>
+template <class T, class CharT = char>
 concept _MethFormattable = requires (T obj)
-{ { obj.format() } -> std::convertible_to<FormatView<CharT, allocator>>; }
-  && Allocator<allocator, CharT>;
+{ { obj.format() } -> std::convertible_to<FormatView<CharT>>; };
 
-template <class T, class CharT = char,
-          class allocator = VoidAllocator<CharT>>
+template <class T, class CharT = char>
 concept _ImplFormattable =
    requires (const T& obj)
-   { { format(obj) } -> std::convertible_to<FormatView<CharT, allocator>>; }
-|| _MethFormattable<T, CharT, allocator>
-&& Allocator<allocator, CharT>;
+   { { format(obj) } -> std::convertible_to<FormatView<CharT>>; }
+|| _MethFormattable<T, CharT>;
 
-template <class T, class CharT = char,
-          class allocator = VoidAllocator<CharT>>
+template <class T, class CharT = char>
 concept Formattable = requires (const T& obj)
 {
-  { format(obj) } -> std::convertible_to<FormatView<CharT, allocator>>;
+  { format(obj) } -> std::convertible_to<FormatView<CharT>>;
 } || Primitive<T>
-  || _MethFormattable<T, CharT, allocator>
+  || _MethFormattable<T, CharT>
   || requires (T obj)
 {
   { std::format("{}", obj) };
-}
-  && Allocator<allocator, CharT>;
-
-template <class T, class CharT = char,
-          Allocator<CharT> allocator = VoidAllocator<CharT>>
-  requires _MethFormattable<T, CharT, allocator>
-FormatView<CharT, allocator> format(const T& obj)
-{ return obj.format(); }
-
-template <class T, class CharT = char, class allocator = VoidAllocator<char>>
-concept Debuggable = requires (T obj)
-{ { obj.debug() } -> std::convertible_to<FormatView<CharT, allocator>>; };
-
-#define _format_with_allocator(ALLOC) \
-template <class T, class Char> \
-  requires (_ImplFormattable<T, char, ALLOC> \
-            && !Debuggable<T, char, ALLOC>) \
-struct std::formatter<T, Char> \
-{ \
-  macro formatter() {} \
-  macro formatter(const formatter&) {} \
-  macro formatter(formatter&&) {} \
-  macro std::formatter<T, char>& operator = (const formatter&) \
-  { return *this; } \
-  macro std::formatter<T, char>& operator = (formatter&&) \
-  { return *this; } \
-   \
-  template <class ParseContext> \
-  macro ParseContext::iterator parse(ParseContext& ctx) \
-  { \
-    return ctx.end(); \
-  } \
- \
-  template <class FmtContext> \
-  macro FmtContext::iterator format(T obj, FmtContext& ctx) const \
-  { \
-    return std::ranges::copy( \
-      std::move(::format(obj)), \
-      ctx.out() \
-    ).out; \
-  } \
-}; \
- \
-template <class T, class Char> \
-  requires (_ImplFormattable<T, char, ALLOC> \
-            && Debuggable<T, char, ALLOC>) \
-struct std::formatter<T, Char> \
-{ \
-  bool format_instead_of_debug; \
- \
-  macro formatter() : format_instead_of_debug(false) {} \
-  macro formatter(const formatter& o) \
-    : format_instead_of_debug(o.format_instead_of_debug) {} \
-  macro formatter(formatter&& o) \
-    : format_instead_of_debug(o.format_instead_of_debug) {} \
-  macro std::formatter<T, char>& operator = (const formatter& f) \
-  { format_instead_of_debug = f; return *this; } \
-  macro std::formatter<T, char>& operator = (formatter&& f) \
-  { format_instead_of_debug = f; return *this; } \
- \
-  template <class ParseContext> \
-  macro ParseContext::iterator parse(ParseContext& ctx) \
-  { \
-    format_instead_of_debug = ctx.begin() == ctx.end(); \
-    return ctx.end(); \
-  } \
- \
-  template <class FmtContext> \
-  macro FmtContext::iterator format(T obj, FmtContext& ctx) const \
-  { \
-    return std::ranges::copy( \
-      std::move(::format(obj)), \
-      ctx.out() \
-    ).out; \
-  } \
-}; \
-template <class T, class Char> \
-  requires (!_ImplFormattable<T, char, ALLOC> \
-            && Debuggable<T, char, ALLOC>) \
-struct std::formatter<T, Char> \
-{ \
-  bool format_instead_of_debug; \
- \
-  macro formatter() : format_instead_of_debug(false) {} \
-  macro formatter(const formatter& o) \
-    : format_instead_of_debug(o.format_instead_of_debug) {} \
-  macro formatter(formatter&& o) \
-    : format_instead_of_debug(o.format_instead_of_debug) {} \
-  macro std::formatter<T, char>& operator = (const formatter& f) \
-  { format_instead_of_debug = f; return *this; } \
-  macro std::formatter<T, char>& operator = (formatter&& f) \
-  { format_instead_of_debug = f; return *this; } \
-   \
-  template <class ParseContext> \
-  macro ParseContext::iterator parse(ParseContext& ctx) \
-  { \
-    mut it = ctx.begin(); \
-    if ( \
-      it == ctx.end() \
-      || *it != ':' \
-      || (++it == ctx.end()) \
-      || *it != '?' \
-      || (++it != ctx.end()) \
-    ) \
-      throw std::format_error( \
-        "Object only supports {:?} format because it is only Debuggable" \
-      ); \
-    return ctx.end(); \
-  } \
- \
-  template <class FmtContext> \
-  macro FmtContext::iterator format(T obj, FmtContext& ctx) const \
-  { \
-    return std::ranges::copy( \
-      std::move(::format(obj)), \
-      ctx.out() \
-    ).out; \
-  } \
 };
 
-_format_with_allocator(VoidAllocator<Char>)
-_format_with_allocator(CppFixedAllocator<Char>)
-_format_with_allocator(CAllocator<Char>)
-#if defined(USE_ARENA) || defined(USED_ARENA)
-_format_with_format_with_allocator(ArenaAllocator<Char>)
-#endif
+template <class T, class CharT = char>
+  requires _MethFormattable<T, CharT>
+FormatView<CharT> format(const T& obj)
+{ return obj.format(); }
+
+template <class T, class CharT = char>
+concept Debuggable = requires (T obj)
+{ { obj.debug() } -> std::convertible_to<FormatView<CharT>>; };
+
+template <class T, class Char>
+  requires (_ImplFormattable<T, char>
+            && !Debuggable<T, char>)
+struct std::formatter<T, Char>
+{
+  macro formatter() {}
+  macro formatter(const formatter&) {}
+  macro formatter(formatter&&) {}
+  macro std::formatter<T, char>& operator = (const formatter&)
+  { return *this; }
+  macro std::formatter<T, char>& operator = (formatter&&)
+  { return *this; }
+  
+  template <class ParseContext>
+  macro ParseContext::iterator parse(ParseContext& ctx)
+  {
+    return ctx.end();
+  }
+
+  template <class FmtContext>
+  macro FmtContext::iterator format(T obj, FmtContext& ctx) const
+  {
+    return std::ranges::copy(
+      std::move(::format(obj)),
+      ctx.out()
+    ).out;
+  }
+};
+
+template <class T, class Char>
+  requires (_ImplFormattable<T, char>
+            && Debuggable<T, char>)
+struct std::formatter<T, Char>
+{
+  bool format_instead_of_debug;
+
+  macro formatter() : format_instead_of_debug(false) {}
+  macro formatter(const formatter& o)
+    : format_instead_of_debug(o.format_instead_of_debug) {}
+  macro formatter(formatter&& o)
+    : format_instead_of_debug(o.format_instead_of_debug) {}
+  macro std::formatter<T, char>& operator = (const formatter& f)
+  { format_instead_of_debug = f; return *this; }
+  macro std::formatter<T, char>& operator = (formatter&& f)
+  { format_instead_of_debug = f; return *this; }
+
+  template <class ParseContext>
+  macro ParseContext::iterator parse(ParseContext& ctx)
+  {
+    format_instead_of_debug = ctx.begin() == ctx.end();
+    return ctx.end();
+  }
+
+  template <class FmtContext>
+  macro FmtContext::iterator format(T obj, FmtContext& ctx) const
+  {
+    return std::ranges::copy(
+      std::move(::format(obj)),
+      ctx.out()
+    ).out;
+  }
+};
+template <class T, class Char>
+  requires (!_ImplFormattable<T, char>
+            && Debuggable<T, char>)
+struct std::formatter<T, Char>
+{
+  bool format_instead_of_debug;
+
+  macro formatter() : format_instead_of_debug(false) {}
+  macro formatter(const formatter& o)
+    : format_instead_of_debug(o.format_instead_of_debug) {}
+  macro formatter(formatter&& o)
+    : format_instead_of_debug(o.format_instead_of_debug) {}
+  macro std::formatter<T, char>& operator = (const formatter& f)
+  { format_instead_of_debug = f; return *this; }
+  macro std::formatter<T, char>& operator = (formatter&& f)
+  { format_instead_of_debug = f; return *this; }
+  
+  template <class ParseContext>
+  macro ParseContext::iterator parse(ParseContext& ctx)
+  {
+    mut it = ctx.begin();
+    if (
+      it == ctx.end()
+      || *it != ':'
+      || (++it == ctx.end())
+      || *it != '?'
+      || (++it != ctx.end())
+    )
+      throw std::format_error(
+        "Object only supports {:?} format because it is only Debuggable"
+      );
+    return ctx.end();
+  }
+
+  template <class FmtContext>
+  macro FmtContext::iterator format(T obj, FmtContext& ctx) const
+  {
+    return std::ranges::copy(
+      std::move(::format(obj)),
+      ctx.out()
+    ).out;
+  }
+};
 
 #endif

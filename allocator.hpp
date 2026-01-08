@@ -32,6 +32,8 @@ template <class T, template <class T_sub> class freetype_allocator>
   requires Allocator<freetype_allocator<T>, T>
 using const_allocator_of = freetype_allocator<const T>;
 
+trait HasAllocator = Allocator<typename T::allocator>;
+
 template <class T>
 struct VoidAllocator
 {
