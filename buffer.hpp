@@ -162,7 +162,8 @@ struct View
   macro FormatView<char> format() const
     requires (Formattable<T> && !std::same_as<T, const char>);
   macro FormatView<char> debug() const;
-  macro FormatView<const char> format() const = delete;
+  macro FormatView<const char> format() const
+    requires std::same_as<T, const char>;
 
   // serde
   serde::Result serialize(serde::SerCallback cb, void* data) const;
@@ -177,15 +178,18 @@ struct View
   macro Selection<Self> sel();
 };
 
+
 template <>
 macro View<const char> View<const char>::cstr(const char* s)
 { return View<const char>::range(s, strlen(s)); }
 template <>
 macro View<char> View<char>::cstr(char* s)
 { return View<char>::range(s, strlen(s)); }
-template <>
-macro FormatView<const char> View<const char>::format() const
+template <class T>
+macro FormatView<const char> View<T>::format() const
+  requires std::same_as<T, const char>
 { return FormatView<const char>::from(*this); }
+
 
 // A buffer allocated on the stack
 template <class T, u32 _cap>
