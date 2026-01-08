@@ -162,7 +162,7 @@ struct View
   macro FormatView<char> format() const
     requires (Formattable<T> && !std::same_as<T, const char>);
   macro FormatView<char> debug() const;
-  macro FormatView<const char> format() const
+  macro FormatView<char> format() const
     requires std::same_as<T, const char>;
 
   // serde
@@ -186,10 +186,11 @@ template <>
 macro View<char> View<char>::cstr(char* s)
 { return View<char>::range(s, strlen(s)); }
 template <class T>
-macro FormatView<const char> View<T>::format() const
+macro FormatView<char> View<T>::format() const
   requires std::same_as<T, const char>
-{ return FormatView<const char>::from(*this); }
+{ return FormatView<char>::from(*this); }
 
+static_assert(_MethFormattable<View<const char>>);
 
 // A buffer allocated on the stack
 template <class T, u32 _cap>
