@@ -118,7 +118,7 @@ struct std::formatter<T, Char>
   macro ParseContext::iterator parse(ParseContext& ctx)
   {
     format_instead_of_debug = ctx.begin() == ctx.end();
-    return ctx.end();
+    return ctx.end() - 1;
   }
 
   template <class FmtContext>
@@ -161,7 +161,7 @@ struct std::formatter<T, Char>
       throw std::format_error(
         "Object only supports {:?} format because it is only Debuggable"
       );
-    return ctx.end();
+    return ctx.end() - 1;
   }
 
   template <class FmtContext>
