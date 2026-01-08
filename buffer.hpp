@@ -210,7 +210,7 @@ struct std::formatter<View<Char>, Char>
   macro FmtContext::iterator format(const View<Char>& obj, FmtContext& ctx) const
   {
     return std::ranges::copy(
-      obj,
+      std::string_view(obj.begin(), obj.end()),
       ctx.out()
     ).out;
   }
