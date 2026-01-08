@@ -84,7 +84,7 @@ struct std::formatter<T, Char>
   template <class ParseContext>
   macro ParseContext::iterator parse(ParseContext& ctx)
   {
-    return ctx.end();
+    return ctx.end()-1;
   }
 
   template <class FmtContext>
