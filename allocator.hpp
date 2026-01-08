@@ -254,6 +254,7 @@ macro ptrdiff_t operator -
 #endif
 
 #ifdef USE_ARENA
+#define USED_ARENA
 #undef USE_ARENA
 mod arena
 {
