@@ -201,7 +201,7 @@ struct std::formatter<String<Char>, Char>
   template <class FmtContext>
   macro FmtContext::iterator format(const String<Char>& obj, FmtContext& ctx) const
   {
-    return std::ranges::ref_view(
+    return std::ranges::copy(
       obj,
       ctx.out()
     ).out;
