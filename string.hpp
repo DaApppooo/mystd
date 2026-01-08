@@ -177,12 +177,12 @@ struct String : CustomBuffer<String<Char, allocator>, Char, allocator>
     return self;
   }
 
-  macro FormatView<Char> format() const
-  { return {this->begin(), this->end(), VoidAllocator<Char>::free}; }
+  // macro FormatView<Char> format() const
+  // { return {this->begin(), this->end(), VoidAllocator<Char>::free}; }
 };
-static_assert(_ImplFormattable<String<char>>);
-static_assert(!Debuggable<String<char>>);
-static_assert(std::is_constructible_v<std::formatter<String<char>, char>>);
+// static_assert(_ImplFormattable<String<char>>);
+// static_assert(!Debuggable<String<char>>);
+// static_assert(std::is_constructible_v<std::formatter<String<char>, char>>);
 
 template <Allocator<char> allocator>
 macro String<char, allocator>& operator += (
