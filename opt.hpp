@@ -61,6 +61,7 @@ struct Opt
     // + it's never accessed without predictable crash
     : _obj(std::is_reference_v<T> ? *_ub_obj : T())
   { _status = NONE; }
+  macro Opt(const T& o, _Status _status) : _obj(o), _status(_status) {}
 
   static macro Opt<T> null()
   { return { T(), NONE }; }
