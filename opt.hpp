@@ -53,15 +53,15 @@ struct Opt
   macro Opt(Opt<T>&&) = default;
   macro Opt<T>& operator = (const Opt<T>&) = default;
   macro Opt<T>& operator = (Opt<T>&&) = default;
-  macro Opt(T o) : _obj(o), _status(SOME) {}
-  macro Opt(const _DefaultType&)
-    requires (!std::is_reference_v<T>)
-  { _status = NONE; }
-  macro Opt(const _DefaultType&)
-    requires (std::is_reference_v<T>)
+  template <class U>
+  macro Opt(const U&);
+  template <>
+  macro Opt<T>(const T& o) : _obj(o), _status(SOME) {}
+  template <>
+  macro Opt<_DefaultType>(const _DefaultType&)
     // technically UB but necessary in order to support such basic feature
     // + it's never accessed without predictable crash
-    : _obj(*_ub_obj)
+    : _obj(std::is_reference_v<T> ? *_ub_obj : T())
   { _status = NONE; }
 
   static macro Opt<T> null()
@@ -171,9 +171,9 @@ struct Opt<T>
   macro Opt(Opt<T>&&) = default;
   macro Opt<T>& operator = (const Opt<T>&) = default;
   macro Opt<T>& operator = (Opt<T>&&) = default;
-  macro Opt(const _DefaultType&) : _obj(to_null<T>()) {}
 
-  macro Opt(T o) : _obj(o) {}
+  macro Opt(const _DefaultType&) : _obj(to_null<T>()) {}
+  macro Opt(const T& o) : _obj(o) {}
   macro operator T () const
   { need(!is_null()); return _obj; }
 
