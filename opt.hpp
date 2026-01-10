@@ -8,6 +8,21 @@
 #include "traits.hpp"
 
 template <class T>
+struct Some
+{
+  T _t;
+  Some(const T& obj) : _t(obj) {}
+  Some(Some&& s) : _t(s._t) {}
+  macro T& operator * () { return _t; }
+  macro T* operator -> () { return &_t; }
+  macro const T& operator * () const { return _t; }
+  macro const T* operator -> () const { return &_t; }
+};
+
+// using a macro so that it can be undef if necessary
+#define None _
+
+template <class T>
 concept Optionable =
   std::is_pointer_v<T>
   || requires(T const& t)
@@ -53,15 +68,16 @@ struct Opt
   macro Opt(Opt<T>&&) = default;
   macro Opt<T>& operator = (const Opt<T>&) = default;
   macro Opt<T>& operator = (Opt<T>&&) = default;
-  macro Opt(const T& o) : _obj(o), _status(SOME) {}
-  template <class U> // technic to reorder overloads
+  template <class U> // technic to reorder overloads (doesn't work...)
     requires std::same_as<U, _DefaultType>
   macro Opt(const U&)
     // technically UB but necessary in order to support such basic feature
     // + it's never accessed without predictable crash
     : _obj(std::is_reference_v<T> ? *_ub_obj : T())
   { _status = NONE; }
+  macro Opt(const T& o) : _obj(o), _status(SOME) {}
   macro Opt(const T& o, _Status _status) : _obj(o), _status(_status) {}
+  macro Opt(const Some<T>& s) : _obj(s), _status(SOME) {}
 
   static macro Opt<T> null()
   { return { T(), NONE }; }
