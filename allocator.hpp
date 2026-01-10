@@ -171,6 +171,8 @@ struct owned_ptr
   macro owned_ptr<T, allocator>&
     operator = (owned_ptr<T, allocator>&&) = default;
   
+  static macro owned_ptr<T, allocator> null() { return { nullptr }; }
+  macro bool is_null() const { return ptr == nullptr; }
   static macro owned_ptr<T, allocator> make(Own<T> val)
   {
     owned_ptr<T, allocator> self;

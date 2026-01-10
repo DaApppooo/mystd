@@ -222,7 +222,7 @@ struct Opt<T>
     requires Dropable<T>
   {
     if (!is_null())
-      _obj.destroy();
+      _obj.drop();
   }
   
   macro FormatView<char> debug() const

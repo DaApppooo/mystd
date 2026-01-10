@@ -33,7 +33,7 @@ using Selection = BasicSelection<It, HeapBuffer<u32>>;
 // No owned pointer, just a reference.
 // Use Span instead if the pointer is owned.
 template <class T>
-struct View
+struct [[gnu::packed]] View
 {
   using Self = View<T>;
   using iterator = T*;
