@@ -53,7 +53,7 @@ struct Opt
   macro Opt(Opt<T>&&) = default;
   macro Opt<T>& operator = (const Opt<T>&) = default;
   macro Opt<T>& operator = (Opt<T>&&) = default;
-  macro Opt(T o) : _obj(o), _status(SOME) {}
+  macro Opt(const T& o) : _obj(o), _status(SOME) {}
   macro Opt(const _DefaultType&)
     requires (!std::is_reference_v<T>)
   { _status = NONE; }
@@ -63,6 +63,7 @@ struct Opt
     // + it's never accessed without predictable crash
     : _obj(*_ub_obj)
   { _status = NONE; }
+  macro Opt(const T& o, _Status _status) : _obj(o), _status(_status) {}
 
   static macro Opt<T> null()
   { return { T(), NONE }; }
