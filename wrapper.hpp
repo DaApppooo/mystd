@@ -18,9 +18,9 @@ struct ValueWrapper
 };
 
 template <class T>
-struct FromStdCPPWrapper
+struct FromSTL
 {
-  using Self = FromStdCPPWrapper<T>;
+  using Self = FromSTL<T>;
   char _obj[sizeof(T)];
   macro T& operator * () { return *reinterpret_cast<T*>(_obj); }
   macro T* operator -> () { return reinterpret_cast<T*>(_obj); }
@@ -48,23 +48,23 @@ struct FromStdCPPWrapper
 };
 
 template <class T>
-struct ToStdCPPWrapper
+struct ToSTL
 {
-  using Self = ToStdCPPWrapper<T>;
+  using Self = ToSTL<T>;
   T _obj;
   macro T& operator * () { return _obj; }
   macro T* operator -> () { return &_obj; }
   macro const T& operator * () const { return _obj; }
   macro const T* operator -> () const { return &_obj; }
-  macro ToStdCPPWrapper()
+  macro ToSTL()
   { _obj = T::init(); }
   template <class U>
-  macro ToStdCPPWrapper(const U& convert)
+  macro ToSTL(const U& convert)
   { _obj = T::from(convert); }
-  macro ToStdCPPWrapper(const Self& cpy)
+  macro ToSTL(const Self& cpy)
     requires Copiable<T>
   { _obj = cpy._obj.copy(); }
-  macro ToStdCPPWrapper(Self&& mv)
+  macro ToSTL(Self&& mv)
     requires Moveable<T>
   { _obj = mv._obj.move(); }
   template <class U>
@@ -76,14 +76,14 @@ struct ToStdCPPWrapper
   macro Self& operator = (Self&& mv)
     requires Moveable<T>
   { _obj = mv._obj.move(); return *this; }
-  macro ~ToStdCPPWrapper()
+  macro ~ToSTL()
   { if macro(Dropable<T>) _obj.drop(); }
 };
 
-using StdException = FromStdCPPWrapper<std::exception>;
+using STLException = FromSTL<std::exception>;
 
 template <class R, class... A>
-macro Result<R, StdException> safe_call(
+macro Result<R, STLException> safe_call(
   const Callable<R, A...> auto&& func,
   A... args
 ) {
@@ -93,7 +93,7 @@ macro Result<R, StdException> safe_call(
   }
   catch (std::exception exc)
   {
-    return Err(StdException::wrap(std::move(exc)));
+    return Err(STLException::wrap(std::move(exc)));
   }
 }
 
