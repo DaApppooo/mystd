@@ -47,8 +47,6 @@ template <class T>
 struct HeapLinDynTree;
 template <class T>
 struct HeapNodeDynTree;
-template <class T>
-struct HeapBuildTree;
 
 trait TreeNodeTrait = requires (T a)
 {
@@ -57,6 +55,15 @@ trait TreeNodeTrait = requires (T a)
 {
   { a[i] } -> std::same_as<typename T::value_type>;
 };
+
+trait HeapBuildNode = requires (T a)
+{
+  { a.children_count() } -> std::convertible_to<size_t>;
+  { a.children() } -> std::convertible_to<View<const T>>;
+  { a.next() } -> std::same_as<T&>;
+};
+template <HeapBuildNode NodeType>
+struct BasicHeapBuildTree;
 
 trait TreeTrait = requires (T a)
 {
@@ -138,7 +145,6 @@ struct SparseFix1Node
     }
   }
   
-
   macro View<owned_ptr<Self>> children() const
   { return _children.to_view(); }
 };
@@ -209,6 +215,11 @@ struct LinNode
   u32 _parent; // absolute index of the parent
   inline macro u32 children_count() const { return _cc - 1; }
   inline macro u32 len() const { return children_count(); }
+  macro u32 
+  macro View<const Self> children() const
+  { return View<const Self>::range(this+1, _cc-1); }
+  macro View<Self> children()
+  { return View<Self>::range(this+1, _cc-1); }
   macro T& get() { return _val; }
   macro const T& get() const { return _val; }
   macro T& operator * () { return _val; }
@@ -249,6 +260,7 @@ struct StackLinTree
     Self temp = {Array<T, cap>::init()};
     temp._data[0]._cc = 0;
   }
+  static macro Self init() noexcept { return rootless(); }
 
   static macro Self with_root(Own<T> val) noexcept
   {
@@ -406,73 +418,41 @@ template <class T, size_t n>
 struct HeapNodeFixTree
 {
   using Self = HeapNodeFixTree<T, n>;
-  struct Node;
-  using node_type = Node&;
-  using const_node_type = const Node&;
+  using node_type = SparseFix1Node<T, n>;
+  using const_node_type = const SparseFix1Node<T, n>;
 
-  owned_ptr<Node> _root;
+  owned_ptr<LinNode<T>> _root;
 
   static macro Self rootless() noexcept
   { return {nullptr}; }
 
   static macro Self with_root(Own<T> val) noexcept
-  { return Self{ ._root = owned_ptr<Node>::alloc(val) }; }
+  { return Self{ ._root = owned_ptr<node_type>::alloc(val) }; }
   static macro Self with_root(const Own<T>* val) noexcept
-  { return Self{ ._root = owned_ptr<Node>::alloc(val) }; }
+  { return Self{ ._root = owned_ptr<node_type>::alloc(val) }; }
 
   macro bool has_root() const { return _root != nullptr; }
   macro Self& add_root(Own<T> val)
-  { need(!has_root()); _root = owned_ptr<Node>::alloc(val); return *this; }
+  {
+    need(!has_root());
+    _root = owned_ptr<node_type>::alloc(val);
+    return *this;
+  }
 
-  macro Opt<node_type> root() noexcept
+  macro Opt<node_type&> root() noexcept
   { if (_root) return *_root; return _; }
-  macro Opt<const_node_type> root() const noexcept
+  macro Opt<const_node_type&> root() const noexcept
   { if (_root) return *_root; return _; }
 
   struct _FixedLevelTraversal
   { // traverse from left to right one single depth level
-    Node* _parent;
+    node_type* _parent;
     struct iterator
     {
       using Self = iterator;
       using difference_type = std::ptrdiff_t;
       using value_type = T;
-      Node* p;
-      macro Self operator ++ () { p += p->_cc; return *this; }
-      macro bool operator == (const Self other) const
-      { return p == other.p; }
-      macro T& operator * () { return p->_val; }
-      macro const T& operator * () const { return p->_val; }
-      macro T* operator -> () { return p->_val; }
-      macro const T* operator -> () const { return p->_val; }
-      macro std::ptrdiff_t operator - (const Self other) const
-      { return p - other.p; }
-    };
-    macro iterator begin() { return {_parent+1}; }
-    macro iterator end() { return {_parent+_parent->_cc}; }
-    macro const iterator begin() const { return {_parent+1}; }
-    macro const iterator end() const { return {_parent+_parent->_cc}; }
-    macro const iterator cbegin() const { return {_parent+1}; }
-    macro const iterator cend() const { return {_parent+_parent->_cc}; }
-  };
-  macro const _FixedLevelTraversal siblings(const_node_type node) const
-  { need(node._parent != NO_PARENT); return {_data.data()+node._parent}; }
-  macro const _FixedLevelTraversal children(const_node_type parent) const
-  { return {&parent}; }
-  macro _FixedLevelTraversal siblings(const_node_type node)
-  { need(node._parent != NO_PARENT); return {_data.data()+node._parent}; }
-  macro _FixedLevelTraversal children(const_node_type parent)
-  { return {&parent}; }
-
-  struct _DepthFirstTraversal
-  { // traverse from left to right one single depth level
-    Node* _parent;
-    struct iterator
-    {
-      using Self = iterator;
-      using difference_type = std::ptrdiff_t;
-      using value_type = T;
-      Node* p;
+      node_type* p;
       macro Self operator ++ () { p += p->_cc; return *this; }
       macro bool operator == (const Self other) const
       { return p == other.p; }
@@ -492,11 +472,41 @@ struct HeapNodeFixTree
   };
 };
 
-template <class T, size_t n>
-macro void HeapNodeFixTree<T,n>::OwnedNode::destroy() const
+/*
+A HeapBuildTree is a free-form linear tree that can have multiple roots. As the
+name suggests is made for situations where you want to build a tree node per
+node. One use case could be AST building.
+
+*/
+template <HeapBuildNode T>
+struct BasicHeapBuildTree
 {
+  using Self = BasicHeapBuildTree<T>;
+  using node_type = LinNode<T>;
+  using const_node_type = const LinNode<T>;
+
+  HeapBuffer<node_type> _data;
+
+  static macro Self init() noexcept
+  { return HeapBuffer<T>::init(); }
+  static macro Self with_root(Own<T> val)
+  { return Self{HeapBuffer<T>::from(
+      View<const_node_type>::wrap(
+        node_type{ ._val = val, ._cc = 1, ._parent = node_type::NO_PARENT }
+      )
+    )};
+  }
+
+  // raw insert
+  template <class... Args>
+  macro Self& insert(u32 index, Args&&... args)
+  { _data.insert(index, args...); }
   
-}
-macro void destroy();
+  macro void drop()
+  { _data.drop(); }
+};
+
+template <class T>
+using HeapBuildTree = BasicHeapBuildTree<LinNode<T>>;
 
 

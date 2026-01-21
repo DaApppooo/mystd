@@ -147,12 +147,20 @@ trait Iterator =
 || InputIterator<T>
 || OutputIterator<T> /* all iterators require one of these three */;
 
+trait ConstIterable =
+  requires (const remove_ref<T> i)
+{
+  requires Iterator<typename remove_ref<T>::const_iterator>;
+  { i.begin() } -> std::convertible_to<typename remove_ref<T>::const_iterator>;
+  { i.end() } -> std::convertible_to<typename remove_ref<T>::const_iterator>;
+};
+
 trait Iterable =
   requires (remove_ref<T> i)
 {
   requires Iterator<typename remove_ref<T>::iterator>;
-  { i.begin() } -> std::same_as<typename remove_ref<T>::iterator>;
-  { i.end() } -> std::same_as<typename remove_ref<T>::iterator>;
+  { i.begin() } -> std::convertible_to<const typename remove_ref<T>::iterator>;
+  { i.end() } -> std::convertible_to<const typename remove_ref<T>::iterator>;
 };
 
 template <Iterable It>

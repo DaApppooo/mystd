@@ -14,6 +14,7 @@ struct Span
 {
   using Self = Span<T>;
   using iterator = T*;
+  using const_iterator = const T*;
   using indexed_type = T;
   using index_t = i32;
   using allocator = freetype_allocator<remove_const<T>>;

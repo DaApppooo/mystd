@@ -28,7 +28,7 @@ struct Array
   {
     Self self;
     typename It_T::iterator it = v.begin();
-    const u32 fill_size = std::min(size, v.len());
+    const u32 fill_size = std::min(size, decltype(size)(::size(v)));
     for (u32 i = 0; i < fill_size; i++)
       self._data[i] = *(it++);
     return self;
