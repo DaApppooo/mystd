@@ -108,7 +108,7 @@ struct [[gnu::packed]] View
   { need(_len > 0); return _begin[0]; }
   macro T& last() const
   { need(_len > 0); return _begin[_len-1]; }
-  macro const u32& len() const { return _len; }
+  macro const u32 len() const { return _len; }
   macro u32& len() { return _len; }
   macro Self& len(u32 l) { _len = l; return *this; }
   macro const T& operator * () const
@@ -366,7 +366,7 @@ struct StackBuffer
   { to_view().drop(); }
 
   macro T* data() const { return _data; }
-  macro const u32& len() const { return _len; }
+  macro const u32 len() const { return _len; }
   macro u32& len() { return _len; }
   macro u32 cap() const { return _cap; }
   macro Self& len(u32 new_len)

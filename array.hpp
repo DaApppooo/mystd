@@ -13,6 +13,7 @@ struct Array
   using indexed_type = T;
   using index_t = i32;
   using iterator = T*;
+  using const_iterator = const T*;
   using cpp_std = std::array<T, size>;
   T _data[size];
 

@@ -35,7 +35,7 @@ template <Iterable Out, Iterable In, class Func>
 macro void map_into(Out& out, In const& in, Func const& func)
 {
   using OutIter = Out::iterator;
-  using InIter = In::iterator;
+  using InIter = prefer_const_iterator<In>;
   OutIter o = out.begin();
   InIter i = in.begin();
   while ( o != out.end() && i != in.end() )
@@ -44,8 +44,8 @@ macro void map_into(Out& out, In const& in, Func const& func)
 template <Iterable Out, Iterable In, class Func>
 macro Out::iterator filter_into(Out& out, In const& in, Func const& func)
 {
-  using OutIter = Out::iterator;
-  using InIter = In::iterator;
+  using OutIter = prefer_const_iterator<Out>;
+  using InIter = prefer_const_iterator<In>;
   OutIter o = out.begin();
   InIter i = in.begin();
   while ( o != out.end() && i != in.end() )
@@ -105,11 +105,33 @@ macro struct {
 
 template <Iterable It, class F>
   requires Sized<It>
-macro auto operator | (It it, _maprpipe<F> obj)
+macro auto operator | (It& it, _maprpipe<F> obj)
 {
-  let span = Span<typename _maprpipe<F>::rtype>::alloc(size(it));
+  mut span = Span<typename _maprpipe<F>::rtype>::alloc(size(it));
   map_into(span, it, obj._f);
   return span;
+}
+template <Iterable Cont, class F>
+macro auto operator | (
+  Cont&& it,
+  _maprpipe<F> obj
+) {
+  using O = typename _maprpipe<F>::rtype;
+  using I = iterable_value_type<Cont>;
+  if macro(sizeof(O) <= sizeof(I) && ImplAs<Cont, O>)
+  {
+    mut result = it.template as<O>();
+    map_into(result, it, obj._f);
+    return result;
+  }
+  else
+  {
+    mut span = Span<O>::alloc(size(it));
+    map_into(span, it, obj._f);
+    if macro(Dropable<Cont>)
+      it.drop();
+    return span;
+  }
 }
 // template <Iterable It, class F>
 //   requires Sized<It>

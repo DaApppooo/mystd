@@ -154,14 +154,29 @@ trait ConstIterable =
   { i.begin() } -> std::convertible_to<typename remove_ref<T>::const_iterator>;
   { i.end() } -> std::convertible_to<typename remove_ref<T>::const_iterator>;
 };
-
-trait Iterable =
+trait MutIterable =
   requires (remove_ref<T> i)
 {
   requires Iterator<typename remove_ref<T>::iterator>;
-  { i.begin() } -> std::convertible_to<const typename remove_ref<T>::iterator>;
-  { i.end() } -> std::convertible_to<const typename remove_ref<T>::iterator>;
+  { i.begin() } -> std::convertible_to<typename remove_ref<T>::iterator>;
+  { i.end() } -> std::convertible_to<typename remove_ref<T>::iterator>;
 };
+
+trait Iterable = ConstIterable<T> || MutIterable<T>;
+
+template <class T, class Into>
+concept ImplAs =
+  requires (remove_ref<T> i)
+{ { i.template as<Into>() }; };
+
+template <Iterable T>
+struct _prefer_const_iterator_t
+{ using type = const remove_ref<T>::iterator; };
+template <ConstIterable T>
+struct _prefer_const_iterator_t<T>
+{ using type = remove_ref<T>::const_iterator; };
+template <Iterable T>
+using prefer_const_iterator = _prefer_const_iterator_t<T>::type;
 
 template <Iterable It>
 struct _iterable_value_type;

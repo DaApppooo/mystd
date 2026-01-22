@@ -47,7 +47,7 @@ struct Span
   {
     Span<T> self;
     self._begin = &*it.begin();
-    self._len = size(it);
+    self._len = ::size(it);
     std::construct_at(&it);
     return self;
   }
@@ -57,7 +57,7 @@ struct Span
   {
     Span<T> self;
     self._begin = &*it.begin();
-    self._len = size(it);
+    self._len = ::size(it);
     std::construct_at(&it);
     return self;
   }
@@ -80,10 +80,12 @@ struct Span
       if macro(Dropable<T>)
         for (T& t : *this)
           t.drop();
+      allocator::free(_begin);
       _begin = nullptr;
     }
   }
-  macro u32 len() const { return _len; }
+  macro u32& len() { return _len; }
+  macro const u32 len() const { return _len; }
   macro Self& len(u32 new_len) { _len = new_len; return *this; }
   macro Self copy() const
   {
@@ -117,8 +119,11 @@ struct Span
     return ret;
   }
   template <class U>
-  macro View<U> as() const
-  { return { static_cast<U*>(_begin), _len*sizeof(T)/sizeof(U) }; }  
+  macro Span<U> as()
+  { return { reinterpret_cast<U*>(_begin), u32(_len*sizeof(T)/sizeof(U)) }; }  
+  template <class U>
+  macro const Span<U> as() const
+  { return { reinterpret_cast<U*>(_begin), u32(_len*sizeof(T)/sizeof(U)) }; }  
   macro bool is_null() const
   { return !_begin; }
   macro T* begin()
@@ -202,7 +207,10 @@ macro Span<char> Span<char>::cstr(Own<char*> start)
 { return Span<char>::steal(View<char>::cstr(start)); }
 template <>
 macro Span<const char> Span<const char>::cstr(Own<const char*> start)
-{ return Span<const char>::steal(View<const char>::cstr(start)); }
+{
+  mut temp = View<const char>::cstr(start);
+  return Span<const char>::steal(temp);
+}
 
 macro struct {
   template <class T, class... Ts>
