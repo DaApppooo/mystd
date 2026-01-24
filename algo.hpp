@@ -44,7 +44,7 @@ macro void map_into(Out& out, In const& in, Func const& func)
 template <Iterable Out, Iterable In, class Func>
 macro Out::iterator filter_into(Out& out, In const& in, Func const& func)
 {
-  using OutIter = prefer_const_iterator<Out>;
+  using OutIter = Out::iterator;
   using InIter = prefer_const_iterator<In>;
   OutIter o = out.begin();
   InIter i = in.begin();
@@ -58,6 +58,24 @@ macro Out::iterator filter_into(Out& out, In const& in, Func const& func)
     ++i;
   }
   return o;
+}
+template <Iterable It>
+macro u32 count(iterable_value_type<It> x, const It& it)
+{
+  u32 i = 0;
+  for (let& y : it)
+    if (x == y)
+      i++;
+  return i;
+}
+template <Iterable It, class Func>
+macro u32 count(Func const& func, const It& it)
+{
+  u32 i = 0;
+  for (let& y : it)
+    if (func(y))
+      i++;
+  return i;
 }
 
 template<typename Ret, typename Arg, typename... Rest>
@@ -81,15 +99,14 @@ struct _maprpipe
   F _f;
   using atype = first_arg_type<F>;
   using rtype = std::invoke_result_t<F, atype>;
-  macro rtype operator () (atype arg)
-  { return _f(arg); }
-  macro rtype operator () (atype arg) const
-  { return _f(arg); }
 };
-// template <class F>
-// struct _maprpipe : _funcrpipe<F> {};
-// template <class F>
-// struct _filterrpipe : _funcrpipe<F> {};
+template <class F>
+struct _filterrpipe
+{
+  F _f;
+  using atype = first_arg_type<F>;
+  using rtype = std::invoke_result_t<F, atype>;
+};
 
 macro struct {
   template <Iterable It, class Func>
@@ -102,6 +119,17 @@ macro struct {
   macro auto operator () (Func const& func) const
   { return _maprpipe(func); }
 } map;
+macro struct {
+  template <Iterable It, class Func>
+  macro It::iterator operator () (It& it, Func const& func) const
+  { filter_into(it, it, func); }
+  template <Iterable It, class Func>
+  macro It::iterator operator () (It&& it, Func const& func) const
+  { filter_into(it, it, func); }
+  template <class Func>
+  macro auto operator () (Func const& func) const
+  { return _filterrpipe(func); }
+} filter;
 
 template <Iterable It, class F>
   requires Sized<It>
@@ -133,14 +161,38 @@ macro auto operator | (
     return span;
   }
 }
-// template <Iterable It, class F>
-//   requires Sized<It>
-// macro auto operator | (It it, _filterrpipe<F> obj)
-// {
-//   let span = Span<typename _filterrpipe<F>::rtype>::alloc(size(it));
-//   filter_into(span, it, obj);
-//   return span;
-// }
+template <Iterable It, class F>
+  requires Sized<It>
+macro auto operator | (It& it, _filterrpipe<F> obj)
+{
+  const u32 total = count(obj._f, it);
+  mut span = Span<typename _filterrpipe<F>::atype>::alloc(total);
+  filter_into(span, it, obj._f);
+  return span;
+}
+template <Iterable Cont, class F>
+macro auto operator | (
+  Cont&& it,
+  _filterrpipe<F> obj
+) {
+  using I = iterable_value_type<Cont>;
+  using O = I;
+  if macro(ImplResize<Cont>)
+  {
+    let end = filter_into(it, it, obj._f);
+    it.len(end - it.begin());
+    return it;
+  }
+  else
+  {
+    const u32 total = count(obj._f, it);
+    mut span = Span<O>::alloc(total);
+    filter_into(span, it, obj._f);
+    if macro(Dropable<Cont>)
+      it.drop();
+    return span;
+  }
+}
 
 template <Iterable It, class Func>
 macro bool all(const It& it, Func const& func)

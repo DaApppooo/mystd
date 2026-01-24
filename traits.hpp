@@ -168,6 +168,10 @@ template <class T, class Into>
 concept ImplAs =
   requires (remove_ref<T> i)
 { { i.template as<Into>() }; };
+template <class T>
+concept ImplResize =
+   requires (remove_ref<T> i, u32 new_size)
+{ { i.len(new_size) }; };
 
 template <Iterable T>
 struct _prefer_const_iterator_t

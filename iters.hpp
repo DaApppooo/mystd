@@ -11,24 +11,23 @@ struct FixedRangeIterable
   using Self = FixedRangeIterable<T>;
   using value_type = T;
   using iterator = Self;
-  T x;
+  using const_iterator = const Self;
+  mutable T x;
   T end_;
   T step;
   macro Self& operator ++ () // ++(int) is auto-impl by traits.hpp
-  {
-    x += step;
-    return *this;
-  }
+  { x += step; return *this; }
   macro Self& operator -- ()
-  {
-    x -= step;
-    return *this;
-  }
+  { x -= step; return *this; }
+  macro const Self& operator ++ () const // ++(int) is auto-impl by traits.hpp
+  { x += step; return *this; }
+  macro const Self& operator -- () const
+  { x -= step; return *this; }
   macro bool operator == (Self other) const
   { return x*step >= other.x*other.step; }
   macro T& operator * ()
   { return x; }
-  macro T& operator * () const
+  macro const T& operator * () const
   { return x; }
   macro T operator - (Self other) const
   { return x - other.x; }
@@ -39,6 +38,10 @@ struct FixedRangeIterable
   { return { end_, end_, step }; }
   macro T len() const
   { return (end_ - x + step - 1)/step; }
+  macro FormatView<char> format() const
+  {
+    std::format()
+  }
 };
 
 template <std::integral T>
@@ -72,6 +75,7 @@ struct LinkedRangeIterable
     macro T& operator * ()
     { return x; }
   };
+  using const_iterator = const iterator;
   remove_const<T> x;
   T& end_;
   T step;
@@ -132,10 +136,9 @@ generator<std::tuple<iterable_value_type<Its>...>>
   zip(Its&&... its)
 {
   static macro u32 _COUNT = sizeof...(Its);
-  auto iterables = std::tuple<Its...>(its...);
-  auto iters = std::tuple<typename remove_ref<Its>::iterator...>(
-    its.begin()...
-  );
+  auto iterables = std::tuple(its...);
+  auto iters = std::tuple(its.begin()...);
+  std::apply([](auto it){ println("end: {}", it.end()); }, iterables);
   while (true)
   {
     bool finished_early = false;
@@ -143,8 +146,12 @@ generator<std::tuple<iterable_value_type<Its>...>>
       zip_detail::with_n<_COUNT>(
         i, [&finished_early, &iterables, &iters](auto j)
         {
+          println("%i\n", std::get<j>(iters));
           if (std::get<j>(iterables).end() == std::get<j>(iters))
+          {
+            printf("Iterator %lu finished early !", j.value);
             finished_early = true;
+          }
         }
       );
     if (finished_early)

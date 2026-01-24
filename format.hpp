@@ -5,6 +5,7 @@
 #include "allocator.hpp"
 #include <format>
 #include <functional>
+#include <memory>
 
 template <class CharT>
 struct FormatView
@@ -30,6 +31,16 @@ struct FormatView
     requires Allocator<alloc<CharT>, CharT>
   static macro FormatView<CharT> from(Own<CharT*> begin, CharT* end)
   { return { begin, end, alloc<CharT>::free }; }
+  static macro FormatView<CharT> from(std::string&& fmt_result)
+  {
+    const u32 length = fmt_result.size();
+    FormatView<CharT> self = {
+      fmt_result.begin(),
+      fmt_result.end(),
+      nullptr
+    };
+    std::construct_at(&fmt_result);
+  }
   macro CharT*& begin() { return _begin; }
   macro CharT*& end() { return _end; }
   macro const CharT* begin() const { return _begin; }

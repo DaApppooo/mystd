@@ -3,6 +3,7 @@
 #include "allocator.hpp"
 #include "buffer.hpp"
 #include "format.hpp"
+#include <cmath>
 
 template <class Char = char, Allocator<Char> allocator = CAllocator<Char>>
   requires (!Dropable<Char>)
@@ -176,10 +177,24 @@ struct String : CustomBuffer<String<Char, allocator>, Char, allocator>
     std::copy(cstr, cstr+self._len, self._data);
     return self;
   }
+  static macro Self from(std::integral auto i)
+  {
+    Self self;
+    self._len = self._cap = (i < 0) + (i == 0 ? 1 : std::log10(i) + 1);
+    self._data = allocator::alloc(self._len);
+    Char* p = self._data;
+    if (i < 0)
+      *(p++) = '-';
+    if (i == 0)
+      *(p++) = '0';
+    
+    u32 offset = 0;
+    while (i > 0)
+    {
+      
+    }
+  }
 };
-// template <class Char = char>
-// macro FormatView<Char> format(const String<Char>& self)
-// { return {self.begin(), self.end(), VoidAllocator<Char>::free}; }
 
 template <class Char>
 struct std::formatter<String<Char>, Char>
