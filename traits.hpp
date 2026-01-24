@@ -45,6 +45,7 @@ trait _StdMoveable = requires (T& obj)
   { { std::move(obj) }; }
 && !std::is_trivially_move_constructible_v<T>
 && !std::is_trivially_move_assignable_v<T>;
+trait is_integral_ref = std::is_reference_v<T> && std::integral<remove_ref<T>>;
 // gives ownership to the output value
 // and resets self to the init state
 // (grossly equivalent to a rust move)
@@ -59,13 +60,29 @@ trait Copiable =
 || requires (const T& d)
 { { d.copy() } -> std::same_as<T>; };
 trait _ImplSize = requires (const T o)
-  { { o.size() } -> std::convertible_to<std::size_t>; };
+  { { o.size() } -> std::integral; };
 trait Sized =
   requires (const T o)
-  { { o.len() } -> std::convertible_to<std::size_t>; }
+  { { o.len() } -> std::integral; }
   || _ImplSize<T>;
+trait _ImplRefSize =
+  requires (const T o)
+  { { o.size() } -> is_integral_ref; };
+trait RefSized =
+  requires (const T o)
+  { { o.len() } -> is_integral_ref; }
+  || _ImplRefSize<T>;
+template <RefSized S>
+inline macro auto& size(const Ref<S>& c)
+{
+  // prefer .size (because math::Vec.len != math::Vec.size)
+  if macro(_ImplRefSize<S>)
+    return c.size();
+  else
+    return c.len();
+}
 template <Sized S>
-inline macro size_t size(const Ref<S>& c)
+inline macro auto size(const Ref<S>& c)
 {
   // prefer .size (because math::Vec.len != math::Vec.size)
   if macro(_ImplSize<S>)
@@ -164,6 +181,8 @@ trait MutIterable =
 
 trait Iterable = ConstIterable<T> || MutIterable<T>;
 
+trait TupleLike = requires{std::tuple_size<remove_ref<T>>::value;};
+
 template <class T, class Into>
 concept ImplAs =
   requires (remove_ref<T> i)
@@ -201,5 +220,6 @@ concept Callable = requires (T a, Args... args)
 {
   { a(args...) } -> std::same_as<Ret>;
 };
+
 
 #endif

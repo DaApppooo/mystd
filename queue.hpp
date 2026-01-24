@@ -86,7 +86,7 @@ struct Queue
     // order is ambiguous with this implementation
   };
 
-  CustomBuffer<T, allocator> _b;
+  HeapBuffer<T, allocator> _b;
   u32 _l : 31;
   u8 _empty_bit : 1; // 0 when _cap is 0 (for optimization purposes)
 
@@ -100,13 +100,13 @@ struct Queue
 
   // _b._len is useless, so use it to represent front index
   macro u32& _f() { return _b._len; }
+  macro u32 _f() const { return _b._len; }
   macro u32 first_index() const { return _f(); }
   macro u32 last_index() const { return _l; }
 
-  macro std::string format()
+  constexpr std::string format() const
   {
-    using namespace std;
-    stringstream s;
+    std::stringstream s;
     u32 _f_p = 0;
     u32 _l_p = 0;
     u32 i;
@@ -233,8 +233,8 @@ struct Queue
     _b._data+_l, _b.end(), _b.begin(), false
   }; }
 
-  macro void destroy() { _b.destroy(); }
-  macro void destroy() const { _b.destroy(); }
+  macro void drop() { _b.drop(); }
+  macro void drop() const { _b.drop(); }
 };
 
 #endif

@@ -12,12 +12,23 @@ struct FormatView
 {
   CharT *_begin, *_end;
   std::function<void(CharT*)> dropper;
-  FormatView() {}
-  FormatView(const FormatView<CharT>&) = delete;
-  FormatView(FormatView<CharT>&& other)
+  macro FormatView() {}
+  macro FormatView(const FormatView<CharT>&) = delete;
+  macro FormatView(std::basic_string<CharT>&& fmt_result)
+    : _begin(&*fmt_result.begin()),
+      _end(&*fmt_result.end())
+  {
+    const size_t size = fmt_result.size()+1;
+    dropper = [size](CharT* p){
+      std::allocator<CharT> al;
+      al.deallocate(p, size);
+    };
+    std::construct_at(&fmt_result);
+  }
+  macro FormatView(FormatView<CharT>&& other)
     : _begin(other._begin), _end(other._end), dropper(other.dropper)
   { other._begin = other._end = nullptr; }
-  FormatView(Own<CharT*> begin, CharT* end,
+  macro FormatView(Own<CharT*> begin, CharT* end,
              std::function<void(CharT*)>&& dropper)
     : _begin(begin), _end(end), dropper(dropper) {}
   template <Iterable It>
@@ -31,15 +42,15 @@ struct FormatView
     requires Allocator<alloc<CharT>, CharT>
   static macro FormatView<CharT> from(Own<CharT*> begin, CharT* end)
   { return { begin, end, alloc<CharT>::free }; }
-  static macro FormatView<CharT> from(std::string&& fmt_result)
+  static macro FormatView<CharT> from(std::basic_string<CharT>&& fmt_result)
   {
-    const u32 length = fmt_result.size();
+    const size_t size = fmt_result.size()+1;
     FormatView<CharT> self = {
-      fmt_result.begin(),
-      fmt_result.end(),
-      nullptr
+      &*fmt_result.begin(),
+      &*fmt_result.end(),
+      [size](CharT* p){ std::allocator<CharT> al; al.deallocate(p, size); }
     };
-    std::construct_at(&fmt_result);
+    return self;
   }
   macro CharT*& begin() { return _begin; }
   macro CharT*& end() { return _end; }

@@ -1,13 +1,18 @@
 #include "list.hpp"
 #include "iters.hpp"
+#include "algo.hpp"
+#include "queue.hpp"
+
 
 int main()
 {
-  let data = array[5,6,7,4,5,3,2,4,6,7,5,4,3,6,7];
-  for (let [i, j] : zip(range(data.len()), data))
-  {
-    println("{}, {}", i, j);
-  }
+  mut q = Queue<i32>::init();
+  q.push(1);
+  q.push(2);
+  q.push(3);
+  println("{}", q.pop());
+  q.push(5);
+  println("{}", q);
   return 0;
 }
 

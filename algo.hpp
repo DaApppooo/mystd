@@ -108,18 +108,37 @@ struct _filterrpipe
   using rtype = std::invoke_result_t<F, atype>;
 };
 
-macro struct {
+macro struct _Map {
   template <Iterable It, class Func>
   macro void operator () (It& it, Func const& func) const
   { std::for_each(it.begin(), it.end(), func); }
   template <Iterable It, class Func>
   macro void operator () (It&& it, Func const& func) const
-  { std::for_each(it.begin(), it.end(), func); }
+  {
+    std::for_each(it.begin(), it.end(), func);
+    if macro(Dropable<It>)
+      it.drop();
+  }
+  template <TupleLike Tuple, class Func>
+  macro auto operator () (Tuple&& tp, Func const& func) const
+  {
+    let a = [&func](auto&& arg){
+      if constexpr(std::is_same<decltype(func(arg)),void>::value)
+      { // if func returns void
+        func(arg);
+        return '\x00';
+      }
+      else
+        return func(arg);
+    };
+    let b = [&a](auto&&... arg){ return std::tuple(a(arg)...); };
+    return std::apply(b, std::forward<Tuple>(tp));
+  }
   template <class Func>
   macro auto operator () (Func const& func) const
   { return _maprpipe(func); }
 } map;
-macro struct {
+macro struct _Filter {
   template <Iterable It, class Func>
   macro It::iterator operator () (It& it, Func const& func) const
   { filter_into(it, it, func); }

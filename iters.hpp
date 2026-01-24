@@ -3,6 +3,7 @@
 #include "buffer.hpp"
 #include "traits.hpp"
 #include "types.hpp"
+#include "algo.hpp"
 #include <concepts>
 
 template <std::integral T>
@@ -40,7 +41,7 @@ struct FixedRangeIterable
   { return (end_ - x + step - 1)/step; }
   macro FormatView<char> format() const
   {
-    std::format()
+    return std::format("range[fixed]({}, end={}, step={})", x, end_, step);
   }
 };
 
@@ -86,6 +87,10 @@ struct LinkedRangeIterable
   { return iterator{ const_cast<remove_const<T>&>(end_), end_, step }; }
   macro T len() const
   { return (end_ - x + step - 1)/step; }
+  macro FormatView<char> format() const
+  {
+    return std::format("range[linked]({}, end={}, step={})", x, end_, step);
+  }
 };
 
 template <std::integral T = i32>
@@ -107,61 +112,42 @@ template <std::integral T = i32>
 macro LinkedRangeIterable<T> range(const T begin, T& end, const T step)
 { return {begin, end, step}; }
 
-namespace zip_detail {
-template<std::size_t I, typename R, typename F>
-inline macro R with_integral_constant(F f)
-{
-  return static_cast<F>(f)(std::integral_constant<std::size_t, I>{});
-}
-template <class T_OUT, class T_IN, size_t... I>
-macro T_OUT deref_tuple(T_IN&& t_in, std::index_sequence<I...>)
-{ return std::tuple(*std::get<I>(std::forward<T_IN>(t_in))...); }
-template <class T_IN, size_t... I>
-macro void incr_tuple(T_IN&& t_in, std::index_sequence<I...>)
-{ (++std::get<I>(std::forward<T_IN>(t_in)), ...); }
-template<std::size_t N, typename R = void, typename F>
-inline macro R with_n(int n, F &&f)
-{
-  macro auto invoke_array =
-    []<std::size_t...I>(std::index_sequence<I...>) {
-    return std::array{ zip_detail::with_integral_constant<I, R, F&&>... };
-  }(std::make_index_sequence<N>{});
-
-  return invoke_array.at(n)(std::forward<F>(f));
-}
-} // namespace detail
-
 template <Iterable... Its>
-generator<std::tuple<iterable_value_type<Its>...>>
-  zip(Its&&... its)
+macro generator<std::tuple<iterable_value_type<Its>...>> zip(Its... its)
 {
-  static macro u32 _COUNT = sizeof...(Its);
-  auto iterables = std::tuple(its...);
-  auto iters = std::tuple(its.begin()...);
-  std::apply([](auto it){ println("end: {}", it.end()); }, iterables);
-  while (true)
+  mut cont = std::tuple(std::tuple(its, its.begin()) ...);
+  for (;;)
   {
-    bool finished_early = false;
-    for (u32 i = 0; i < _COUNT && !finished_early; i++)
-      zip_detail::with_n<_COUNT>(
-        i, [&finished_early, &iterables, &iters](auto j)
-        {
-          println("%i\n", std::get<j>(iters));
-          if (std::get<j>(iterables).end() == std::get<j>(iters))
-          {
-            printf("Iterator %lu finished early !", j.value);
-            finished_early = true;
-          }
-        }
-      );
-    if (finished_early)
+    bool finished = false;
+    map(cont, [&finished](const auto& tpl)
+    {
+      let [iterable, iterator] = tpl;
+      if (iterator == iterable.end())
+        finished = true;
+    });
+    if (finished)
       break;
-    yield zip_detail::deref_tuple
-      <std::tuple<iterable_value_type<Its>...>>
-      (iters, std::make_index_sequence<_COUNT>());
-    zip_detail::incr_tuple(iters, std::make_index_sequence<_COUNT>());
+    yield map(cont,
+      [](const auto& tpl)
+      {
+        let [iterable, iterator] = tpl;
+        return *iterator;
+      }
+    );
+    map(cont,
+      [](auto& tpl)
+      {
+        ++std::get<1>(tpl);
+      }
+    );
   }
 }
+// prefer iota as a ref to the stl to python's enumerate
+template <class T>
+  requires (Iterable<T> && (Sized<T> || RefSized<T>))
+macro auto iota(T it)
+{ return zip(range(size(it)), it); }
+
 
 template <class It, class BufferUInt>
 struct BasicSelection
